@@ -1,6 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
+let errorHandlerRegistered = false;
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:4000";
 
@@ -25,6 +26,24 @@ export function connectSocket(token?: string): Socket {
     s.auth = { token };
   }
 
+  if (!errorHandlerRegistered) {
+    s.on("connect_error", (err) => {
+      if (
+        err.message === "Authentication required" ||
+        err.message === "Invalid or expired token"
+      ) {
+        const freshToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("accessToken")
+            : null;
+        if (freshToken && freshToken !== (s.auth as { token?: string })?.token) {
+          s.auth = { token: freshToken };
+        }
+      }
+    });
+    errorHandlerRegistered = true;
+  }
+
   if (!s.connected) {
     s.connect();
   }
@@ -36,6 +55,7 @@ export function disconnectSocket(): void {
   if (socket) {
     socket.disconnect();
     socket = null;
+    errorHandlerRegistered = false;
   }
 }
 

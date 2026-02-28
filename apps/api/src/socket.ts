@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import logger from './config/logger';
 import { env } from './config/env';
 
@@ -14,8 +15,26 @@ export function initSocket(httpServer: HttpServer): Server {
     },
   });
 
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token
+      || socket.handshake.headers?.authorization?.split(' ')[1];
+
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+
+    try {
+      const decoded = jwt.verify(token, env.JWT_SECRET) as { id: number; role: string };
+      socket.data.user = decoded;
+      socket.data.role = decoded.role;
+      next();
+    } catch {
+      next(new Error('Invalid or expired token'));
+    }
+  });
+
   io.on('connection', (socket) => {
-    logger.debug('Socket connected', { socketId: socket.id });
+    logger.debug('Socket connected', { socketId: socket.id, userId: socket.data.user?.id, role: socket.data.role });
 
     socket.on('join:event', (eventId: string) => {
       socket.join(`event:${eventId}`);
