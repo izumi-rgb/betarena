@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useBetSlipStore } from '@/stores/betSlipStore';
 import { useAuthStore } from '@/stores/authStore';
+import { apiPost } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
 
 function cx(...vals: Array<string | false | null | undefined>) {
   return vals.filter(Boolean).join(' ');
@@ -20,6 +22,8 @@ export function MemberGlobalChrome() {
   const openMobile = useBetSlipStore((s) => s.openMobile);
   const closeMobile = useBetSlipStore((s) => s.closeMobile);
   const [stake, setStake] = useState('10');
+  const [isPlacing, setIsPlacing] = useState(false);
+  const clearPicks = useBetSlipStore((s) => s.clearPicks);
 
   const isMemberRoute = pathname?.startsWith('/sports') || pathname?.startsWith('/results') || pathname?.startsWith('/my-bets') || pathname?.startsWith('/account') || pathname === '/in-play' || pathname === '/live';
 
@@ -61,12 +65,49 @@ export function MemberGlobalChrome() {
           <div className="mt-2 flex items-center justify-between text-xs text-[#94A3B8]"><span>Total Odds</span><span className="font-mono text-white">{picks.length ? totalOdds.toFixed(2) : '0.00'}</span></div>
           <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]"><span>Potential Return</span><span className="font-mono text-[#00C37B]">{potential.toFixed(2)}</span></div>
           <button
-            onClick={() => {
+            disabled={isPlacing || picks.length === 0}
+            onClick={async () => {
               if (triggerLoginForProtectedAction()) return;
+              if (picks.length === 0 || isPlacing) return;
+
+              const stakeNum = Number(stake);
+              if (!stakeNum || stakeNum <= 0) {
+                toast({ title: 'Invalid stake', description: 'Please enter a valid stake amount.', variant: 'destructive' });
+                return;
+              }
+
+              setIsPlacing(true);
+              try {
+                const betType = picks.length === 1 ? 'single' : 'accumulator';
+                const selections = picks.map((p) => ({
+                  event_id: p.eventId,
+                  market_type: p.marketType,
+                  selection_name: p.selection,
+                  odds: p.odds,
+                }));
+
+                await apiPost('/api/bets', { type: betType, stake: stakeNum, selections });
+
+                toast({ title: 'Bet Placed!', description: `Your ${betType} bet of ${stakeNum.toFixed(2)} has been placed.` });
+                clearPicks();
+                router.push('/my-bets');
+              } catch (err: unknown) {
+                const msg = (err as any)?.response?.data?.message || 'Failed to place bet';
+                const friendly: Record<string, string> = {
+                  INSUFFICIENT_BALANCE: 'Insufficient balance. Please add credits.',
+                  INVALID_STAKE: 'Invalid stake amount.',
+                  NO_SELECTIONS: 'No selections in your bet slip.',
+                  SINGLE_BET_ONE_SELECTION: 'Single bet requires exactly one selection.',
+                  ACCUMULATOR_MIN_TWO: 'Accumulator requires at least two selections.',
+                };
+                toast({ title: 'Bet Failed', description: friendly[msg] || msg, variant: 'destructive' });
+              } finally {
+                setIsPlacing(false);
+              }
             }}
-            className="mt-3 w-full rounded-lg bg-[#00C37B] py-2.5 text-sm font-bold text-[#0B0E1A]"
+            className="mt-3 w-full rounded-lg bg-[#00C37B] py-2.5 text-sm font-bold text-[#0B0E1A] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Place Bet
+            {isPlacing ? 'Placing Bet...' : `Place Bet${picks.length > 0 ? ` (${picks.length})` : ''}`}
           </button>
         </div>
       </aside>
