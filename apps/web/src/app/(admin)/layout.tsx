@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 function NavItem({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
@@ -49,7 +50,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <NavItem href="/admin/users/agents/1" label="Agent Detail" />
           </nav>
         </aside>
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
       </div>
     </div>
   );
