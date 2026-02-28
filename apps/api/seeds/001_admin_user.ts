@@ -8,7 +8,11 @@ export async function seed(knex: Knex): Promise<void> {
     return;
   }
 
-  const passwordHash = await bcrypt.hash('admin123!', 12);
+  const password = process.env.ADMIN_SEED_PASSWORD;
+  if (!password) {
+    throw new Error('ADMIN_SEED_PASSWORD environment variable is required to run seeds');
+  }
+  const passwordHash = await bcrypt.hash(password, 12);
 
   await knex.transaction(async (trx) => {
     const [admin] = await trx('users').insert({
