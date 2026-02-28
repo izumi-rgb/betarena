@@ -1,0 +1,306 @@
+# .cursorrules — Read This First, Every Time
+
+You are building **BetArena**, a full feature-for-feature clone of **Bet365 (bet365.com)** — the world's largest online sports betting platform. The only difference is that BetArena uses **virtual/demo credits** instead of real money. Everything else — the UI, the sports coverage, the bet types, the odds markets, the live betting experience, the navigation structure — must replicate Bet365 as closely as possible while having its own branding and slight creative touches.
+
+---
+
+## Your North Star: Bet365.com
+
+Before building ANY feature, mentally ask yourself:
+> "How does Bet365 do this?"
+
+Then build it that way. If you are unsure how Bet365 handles something, default to the most feature-complete, professional implementation possible.
+
+Study these Bet365 sections and replicate them:
+- bet365.com → Sports lobby (left sidebar sport list, top navigation, in-play section)
+- bet365.com → Any football match page (market accordion layout, odds buttons, bet slip)
+- bet365.com → In-Play page (live match list, live score, live odds updating in real time)
+- bet365.com → My Account → My Bets (open bets, settled bets, cash out button)
+- bet365.com → Bet slip (right sidebar, add/remove selections, stake input, potential returns)
+
+---
+
+## Sports Coverage — Clone All of These
+
+Build support for every sport Bet365 covers:
+
+### Tier 1 (Must have — build first)
+- ⚽ Football / Soccer (all major leagues: Premier League, La Liga, Serie A, Bundesliga, Champions League, World Cup, etc. — 1000+ leagues total)
+- 🏀 Basketball (NBA, EuroLeague, NCAA, FIBA)
+- 🎾 Tennis (ATP, WTA, ITF, Grand Slams)
+- 🏏 Cricket (Test, ODI, T20, IPL, BBL, The Hundred)
+- 🏈 American Football (NFL, NCAA Football, CFL)
+- 🏒 Ice Hockey (NHL, KHL, SHL)
+- 🎱 Snooker (World Championship, Masters, UK Championship)
+- 🥊 Boxing & MMA (UFC, major boxing events)
+
+### Tier 2 (Build after Tier 1)
+- ⚾ Baseball (MLB, NPB)
+- 🏉 Rugby Union & Rugby League (Six Nations, Premiership, NRL, Super League)
+- 🏐 Volleyball (international, club)
+- 🏊 Darts (PDC, BDO)
+- 🏇 Horse Racing (UK, Ireland, US, international — ante-post and day-of)
+- 🐕 Greyhound Racing
+- 🏎️ Formula 1 & Motorsport
+- 🏌️ Golf (PGA Tour, DP World Tour, Majors)
+- 🏊 Swimming / Athletics / Olympics (event-based)
+- 🎮 Esports (CS2, League of Legends, Dota 2, Valorant)
+- 🏐 Futsal, Handball, Floorball, Bandy
+- 🏸 Badminton, Table Tennis
+
+---
+
+## Bet Types — Clone Every Single One
+
+### Core Bet Types (Every Sport)
+- **Single** — one selection, one event
+- **Double** — two selections, both must win
+- **Treble** — three selections
+- **Accumulator / Parlay** — 4+ selections, all must win
+- **Trixie** — 3 selections, 4 bets (3 doubles + 1 treble)
+- **Patent** — 3 selections, 7 bets (3 singles + 3 doubles + 1 treble)
+- **Yankee** — 4 selections, 11 bets
+- **Lucky 15** — 4 selections, 15 bets
+- **Lucky 31** — 5 selections, 31 bets
+- **Lucky 63** — 6 selections, 63 bets
+- **Heinz** — 6 selections, 57 bets
+- **Super Heinz** — 7 selections, 120 bets
+- **Goliath** — 8 selections, 247 bets
+
+### Football-Specific Markets (replicate exactly as Bet365)
+- Match Result (1X2)
+- Both Teams to Score (BTTS)
+- Over / Under Goals (0.5, 1.5, 2.5, 3.5, 4.5, 5.5)
+- Asian Handicap (full range: -3.5 to +3.5 in 0.25 increments)
+- European Handicap
+- Correct Score
+- Half Time / Full Time
+- First Goal Scorer / Last Goal Scorer / Anytime Goal Scorer
+- First Team to Score
+- Draw No Bet
+- Double Chance (1X, X2, 12)
+- Clean Sheet (Home / Away)
+- Winning Margin
+- Total Corners Over/Under
+- Total Cards Over/Under
+- Half Time Result
+- First Half Over/Under
+- Scorecast (first scorer + correct score combined)
+- Wincast (first scorer + match result combined)
+- Next Goal (Home / No Goal / Away)
+- Team to Win Both Halves
+- To Qualify (in cup competitions)
+- Outright / Winner (league, tournament)
+
+### Tennis-Specific Markets
+- Match Winner
+- Set Betting (exact set score)
+- Total Games Over/Under
+- Games Handicap
+- First Set Winner
+- Correct Score (sets)
+- Any Set to Nil
+- To Win a Set
+
+### Basketball-Specific Markets
+- Match Winner (including overtime)
+- Point Spread (Handicap)
+- Total Points Over/Under
+- First Half Winner
+- First Quarter Winner
+- Player Points Over/Under
+- Margin of Victory
+
+### Horse Racing-Specific Markets
+- Win
+- Each Way (Win + Place)
+- Place Only
+- Forecast (1st and 2nd in order)
+- Reverse Forecast
+- Combination Forecast
+- Scorecast
+- Each Way Double / Treble
+- Ante-Post markets
+
+### Live / In-Play Bet Types
+- All standard markets available in-play where applicable
+- Next Goal / Next Point / Next Score
+- Live Asian Handicap (updated in real time)
+- Live Over/Under
+- Time of Next Goal
+- Will There Be a Red Card?
+- Cash Out (full and partial)
+
+---
+
+## UI/UX — Mirror Bet365's Layout Exactly
+
+### Global Layout
+- **Left sidebar**: Full sport navigation list with icons, expandable competitions by sport
+- **Main content area**: Events list or market view
+- **Right sidebar**: Bet slip (sticky, always visible on desktop)
+- **Top header**: Logo, navigation tabs (Sports, In-Play, Live Streaming, My Bets, etc.), account balance, login
+- **Dark navy blue** primary color scheme (Bet365's signature #1a3a5c style) — but BetArena can use its own brand color variation
+
+### Sports Lobby Page
+- In-Play section at the top with live event count badge
+- Sport filter tabs
+- Today's events grouped by competition
+- Competition header with country flag
+- Each event row: teams, time, top 3 markets inline, "+X more markets" link
+- Favourite star icon per event
+
+### Event / Match Page
+- Competition breadcrumb at top
+- Match header: team names, score (if live), time, live badge
+- Market accordion sections (collapsible, open by default for popular markets)
+- Odds displayed as buttons — green highlight when selected
+- Popular markets pinned at top (Match Result, Both Teams to Score, Over/Under)
+- All markets expandable below
+
+### Bet Slip (Right Sidebar)
+- Persists across page navigation
+- Shows each selection: event name, market, selection, odds
+- Remove button (×) per selection
+- Stake input per selection (Single mode) or one stake (Accumulator mode)
+- Toggle between Singles / Multiples / System bets
+- Potential Returns calculated in real time
+- "Place Bet" button (disabled if insufficient balance)
+- Odds change notification (flash animation if odds drift or shorten)
+- Each Way toggle where applicable
+
+### In-Play Page
+- Live events grid sorted by sport
+- Live score prominently displayed
+- Live match timeline / tracker (minute, events like goals/cards/corners)
+- Pulsing red "LIVE" badge
+- Odds updating in real time with flash animation on change (green = drifted, red = shortened)
+
+### My Bets Page
+- Tabs: Open Bets / Settled Bets / Cash Out
+- Each bet card: selections, stake, potential/actual return, status badge, placed at time
+- Cash Out button with current cash out value (if eligible)
+- Partial Cash Out slider
+
+### Odds Display
+- Toggle: Decimal / Fractional / American (stored in user preference)
+- Default: Decimal
+
+---
+
+## Real-Time Behavior — Must Feel Live
+
+- Odds must update **without page refresh** using WebSocket (Socket.io)
+- When odds change: flash the button **green** if odds increased (drifted), **red** if decreased (shortened)
+- Live match score must update in real time
+- Bet slip potential returns must recalculate instantly when odds change while selection is in slip
+- In-play event list must re-sort as events start/finish without page reload
+- If a market is suspended: grey out the odds button and show "SUSP" text
+
+---
+
+## Cash Out Feature
+
+- Available on eligible open bets (singles and accumulators)
+- Cash Out value calculated as: `(current odds of remaining selections / original odds) × original stake`
+- Full Cash Out: settle immediately at current value
+- Partial Cash Out: slider to choose what percentage to cash out, remainder stays open
+- Cash Out value updates in real time via WebSocket
+- If market is suspended: Cash Out button disabled showing "Cash Out Unavailable"
+
+---
+
+## External Data API Integration
+
+Use one of these APIs for real sports data:
+- **Primary recommendation**: SportRadar API (most complete, used by major bookmakers)
+- **Alternative**: BetsAPI (via RapidAPI) — cheaper, good coverage
+- **Alternative**: API-Football for football-only (very affordable)
+- **Alternative**: The Odds API (good for odds aggregation)
+
+The odds sync job must:
+- Fetch live event odds every **5 seconds** for in-play events
+- Fetch pre-match odds every **60 seconds** for upcoming events
+- Cache all odds in Redis with key `odds:{eventId}:{marketType}`
+- Push changes to clients via Socket.io room `event:{eventId}`
+- Detect odds changes and include direction (up/down) in the WebSocket payload so frontend can flash the correct color
+
+---
+
+## Account & Credit System (BetArena-Specific)
+
+This is where BetArena differs from Bet365. Instead of real money deposits:
+
+- Users have a **virtual credit balance**
+- Credits are created only by Admin and distributed through the agent hierarchy
+- No deposit, no withdrawal, no payment gateway
+- Everything else (bet placement, settlement, balance updates) works identically to a real bookmaker
+
+---
+
+## Key Development Rules
+
+1. **Always ask: "How does Bet365 do this?"** before implementing any feature
+2. Build the **full market depth** — don't cut corners on bet types. If Bet365 shows 150 markets on a Premier League match, BetArena should too
+3. **Odds must feel real** — use actual current odds from the data API, not fake/random numbers
+4. **Every loading state needs a skeleton** — no blank white screens while data loads
+5. **Mobile responsive** — Bet365's mobile experience is excellent, match it
+6. **Animations matter** — odds flash, bet slip slide-in, accordion expand/collapse. These small details make it feel professional
+7. The platform should feel **fast** — Redis caching on all odds data, optimistic UI updates on bet slip
+8. **No feature is too small to do properly** — if Bet365 has a "Favourite" star on events, build it. If they have a competition search, build it.
+
+---
+
+## Workflow & Skills
+
+Use these patterns when they fit the task:
+
+### Dispatching parallel agents
+
+When building **3+ independent areas** (e.g. bet types, member UI, live/real-time, admin, different sport modules), treat each as a separate domain and dispatch **one agent per domain** with:
+
+- **Clear scope** — one test file, one subsystem, or one feature area
+- **No shared state** — domains that don’t depend on each other
+- **Explicit goal** — e.g. “Make these tests pass” or “Implement X without changing Y”
+- **Expected output** — short summary of what was found and changed
+
+After agents return: review summaries, check for conflicting edits, run the full suite, then integrate.
+
+### Design iteration
+
+When UI isn’t converging after 1–2 passes (e.g. layout, density, or Bet365 alignment):
+
+1. Capture current state (screenshot or snapshot).
+2. Compare to Bet365 reference and/or DESIGN_TASKS.md.
+3. Adjust layout, CSS/Tailwind, and components in small steps.
+4. Repeat until the design matches the intended direction.
+
+Use whatever design-iteration mechanism is available (browser snapshot, design tools, or incremental code changes). Prefer event-driven or snapshot-based checks over long timeouts in tests.
+
+### Frontend design
+
+For **all UI work**, follow the frontend-design skill:
+
+- **Aesthetic direction** — Bet365-style layout and density, with BetArena branding (e.g. deep green and yellow). Avoid generic “AI” look: no Inter/Roboto, no default purple gradients.
+- **Typography, color, motion** — choose deliberately; use CSS variables and a consistent theme; use motion for odds flash, bet slip, and accordions.
+- **Spatial composition** — mirror Bet365’s structure (left sport nav, main content, right bet slip); add atmosphere and depth where it fits (e.g. subtle backgrounds, clear hierarchy).
+- **Implementation** — match complexity to the vision: full Bet365-style density needs full fidelity; minimal or focused screens need restraint and clarity.
+
+Reference: bet365-screenshots/, DESIGN_TASKS.md, and AGENTS.md for learned preferences and workspace facts. AGENTS.md is kept up to date from agent transcripts (continual-learning); prefer its bullets when they apply.
+
+---
+
+## What This Is NOT
+
+- Not a real money platform (no payment processing needed)
+- Not a 100% pixel-perfect clone (BetArena has its own branding and minor creative differences)
+- Not a casino platform in Phase 1 (slots, live casino are out of scope initially)
+- Not a live streaming platform (no video rights — show stats/tracker instead)
+
+---
+
+## Summary
+
+When in doubt: **open bet365.com, look at how they did it, build it that way.**
+
+The goal is that a Bet365 user sitting down at BetArena feels completely at home — same navigation logic, same bet slip behavior, same markets, same bet types — just with a different color scheme and logo, and virtual credits instead of real money.

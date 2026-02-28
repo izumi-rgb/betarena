@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Bet365-inspired palette: deep green + yellow accent, with creative twist */
+@layer base {
+  :root {
+    --bet365-green: 164 85% 27%;
+    --bet365-green-light: 164 70% 35%;
+    --bet365-yellow: 48 96% 53%;
+    --bet365-yellow-dim: 48 80% 45%;
+    --bet365-dark: 160 30% 8%;
+    --bet365-darker: 160 35% 5%;
+    --bet365-card: 160 25% 10%;
+    --bet365-border: 160 20% 18%;
+    --background: 160 30% 6%;
+    --foreground: 0 0% 96%;
+    --card: 160 25% 9%;
+    --card-foreground: 0 0% 96%;
+    --popover: 160 25% 9%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 164 85% 27%;
+    --primary-foreground: 48 96% 53%;
+    --secondary: 160 20% 14%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 160 20% 14%;
+    --muted-foreground: 160 10% 55%;
+    --accent: 48 96% 53%;
+    --accent-foreground: 160 85% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 20% 18%;
+    --input: 160 20% 14%;
+    --ring: 48 96% 53%;
+    --chart-1: 164 85% 35%;
+    --chart-2: 48 96% 53%;
+    --chart-3: 217 91% 60%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.25rem;
+  }
+
+  .dark {
+    --background: 160 30% 6%;
+    --foreground: 0 0% 96%;
+    --card: 160 25% 9%;
+    --card-foreground: 0 0% 96%;
+    --popover: 160 25% 9%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 164 85% 27%;
+    --primary-foreground: 48 96% 53%;
+    --secondary: 160 20% 14%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 160 20% 14%;
+    --muted-foreground: 160 10% 55%;
+    --accent: 48 96% 53%;
+    --accent-foreground: 160 85% 15%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 20% 18%;
+    --input: 160 20% 14%;
+    --ring: 48 96% 53%;
+    --chart-1: 164 85% 35%;
+    --chart-2: 48 96% 53%;
+    --chart-3: 217 91% 60%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(164 85% 15% / 0.15), transparent);
+  }
+}
+
+@layer utilities {
+  .odds-up {
+    animation: odds-flash-up 0.6s ease-out;
+  }
+  .odds-down {
+    animation: odds-flash-down 0.6s ease-out;
+  }
+  .bet365-header {
+    background: linear-gradient(180deg, hsl(164 85% 22%) 0%, hsl(164 85% 18%) 100%);
+    border-bottom: 1px solid hsl(164 50% 25%);
+  }
+  .bet365-yellow-btn {
+    background: linear-gradient(180deg, hsl(48 96% 58%) 0%, hsl(48 90% 48%) 100%);
+    color: hsl(160 85% 12%);
+    font-weight: 700;
+  }
+  .bet365-yellow-btn:hover {
+    background: linear-gradient(180deg, hsl(48 96% 62%) 0%, hsl(48 90% 52%) 100%);
+  }
+}
+
+@keyframes odds-flash-up {
+  0% { background-color: hsl(48 96% 53% / 0.4); }
+  100% { background-color: transparent; }
+}
+
+@keyframes odds-flash-down {
+  0% { background-color: hsl(0 84% 60% / 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-live {
+  animation: pulse-live 1.5s ease-in-out infinite;
+}

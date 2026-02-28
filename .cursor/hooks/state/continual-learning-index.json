@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "transcripts": {
+    "/home/voxmastery/.cursor/projects/home-voxmastery-Music-bitarena/agent-transcripts/84c5f79f-889f-4c02-8103-278d22d0c4d1/84c5f79f-889f-4c02-8103-278d22d0c4d1.jsonl": {
+      "mtimeMs": 1771627392000,
+      "lastProcessedAt": "2026-02-19T00:00:00.000Z"
+    },
+    "/home/voxmastery/.cursor/projects/home-voxmastery-Music-bitarena/agent-transcripts/5a5a15ec-be1e-41f4-8f2f-09f1b1c593d8/5a5a15ec-be1e-41f4-8f2f-09f1b1c593d8.jsonl": {
+      "mtimeMs": 1771546835000,
+      "lastProcessedAt": "2026-02-19T00:00:00.000Z"
+    },
+    "/home/voxmastery/.cursor/projects/home-voxmastery-Music-bitarena/agent-transcripts/caa141e8-931c-4633-b977-598d4f21e85a/caa141e8-931c-4633-b977-598d4f21e85a.jsonl": {
+      "mtimeMs": 1771470240000,
+      "lastProcessedAt": "2026-02-19T00:00:00.000Z"
+    }
+  }
+}

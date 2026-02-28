@@ -1,0 +1,79 @@
+{
+  "search_id": "search_4db3853fb23e45e49d108da5b6701661",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://developers.cloudflare.com/fundamentals/manage-domains/add-site/",
+      "title": "Onboard a domain \u00b7 Cloudflare Fundamentals docs",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: On this page > Was this helpful?\nContent:\n[Edit](https://github.com/cloudflare/cloudflare-docs/edit/production/src/content/docs/fundamentals/manage-domains/add-site.mdx) [Issue](https://github.com/cloudflare/cloudflare-docs/issues/new/choose)\nDirectory\n\u2026\nCloudflare Fundamentals\nDomains\nOnboard a domain Copy page\n ... \nSection Title: Onboard a domain > 1. Onboard a domain in Cloudflare\nContent:\n[Go to **Account home**](https://dash.cloudflare.com/?to=/:account/home)\n2. Select **Onboard a domain** .\n3. Enter your website's apex domain (for example, `example.com` ), choose how you would like to add your DNS records , and select **Continue** .\nNote\nIf Cloudflare is unable to identify your domain as a registered domain, make sure you are using an existing [top-level domain \u2197](https://www.cloudflare.com/learning/dns/top-level-domain/) ( `.com` , `.net` , `.biz` , or others).\nCloudflare requires your apex domain to be one level below a valid TLD defined in the [Public Suffix List (PSL) \u2197](https://github.com/publicsuffix/list/blob/master/public_suffix_list.dat) . Enterprise customers can onboard lower-level subdomains using Subdomain setup .\n4. Select a [plan \u2197](https://www.cloudflare.com/plans/) .\n5. Review your DNS records to ensure none are missing. Your DNS records must be accurate for your domain to work properly.\nSection Title: Onboard a domain > 1. Onboard a domain in Cloudflare\nContent:\nCloudflare can automatically scan for common records and add them to the DNS zone for you, or you can add records manually. These records show up under your domain on the [**DNS Records** \u2197](https://dash.cloudflare.com/?to=/:account/:zone/dns/records) page of the dashboard.\n ... \nSection Title: Onboard a domain > 3. Complete SSL/TLS setup\nContent:\nTo prevent insecure connections and visitor browser errors, enable SSL/TLS protection . Many Cloudflare services will automatically protect and speed up your web traffic after your nameservers are updated.\nIf you encounter unexpected results when changing your nameservers, refer to the DNS Full Setup troubleshooting .\n ... \nSection Title: Onboard a domain > 3. Complete SSL/TLS setup\nContent:\n](https://isbgpsafeyet.com/)\n[RPKI Toolkit](https://rpki.cloudflare.com/)\n[Certificate Transparency](https://ct.cloudflare.com/)\n**Community**\n[X](https://x.com/cloudflare)\n[Discord](http://discord.cloudflare.com/)\n[YouTube](https://www.youtube.com/cloudflare)\n[GitHub](https://github.com/cloudflare/cloudflare-docs)\n[Privacy Policy](https://www.cloudflare.com/privacypolicy/)\n[Terms of Use](https://www.cloudflare.com/website-terms/)\n[Report Security Issues](https://www.cloudflare.com/disclosure/)\n[Trademark](https://www.cloudflare.com/trademark/)\nCookie Settings\nSection Title: Onboard a domain > 3. Complete SSL/TLS setup\nContent:\nPrevious Move a domain between Cloudflare accounts Next Pause Cloudflare\n[Edit page](https://github.com/cloudflare/cloudflare-docs/edit/production/src/content/docs/fundamentals/manage-domains/add-site.mdx)\nLast updated: Feb 9, 2026"
+      ]
+    },
+    {
+      "url": "https://developers.cloudflare.com/ddos-protection/",
+      "title": "Overview \u00b7 Cloudflare DDoS Protection docs",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: On this page > Was this helpful?\nContent:\n[Edit](https://github.com/cloudflare/cloudflare-docs/edit/production/src/content/docs/ddos-protection/index.mdx) [Issue](https://github.com/cloudflare/cloudflare-docs/issues/new/choose)\nDirectory\nDDoS Protection Copy page\nSection Title: Cloudflare DDoS Protection\nContent:\nDetect and mitigate distributed denial-of-service (DDoS) attacks automatically.\nAvailable on all plans\nCloudflare automatically detects and mitigates [distributed denial-of-service (DDoS) attacks](https://www.cloudflare.com/learning/ddos/what-is-a-ddos-attack/) via our autonomous DDoS systems.\nThese systems include multiple dynamic mitigation rules exposed as DDoS attack protection managed rulesets . You can customize the mitigation rules included in these rulesets to optimize and tailor the protection to your needs.\n ... \nSection Title: Cloudflare DDoS Protection > Features > Adaptive DDoS Protection\nContent:\nGet increased protection against sophisticated DDoS attacks on layer 7 and layers 3/4.\nUse Adaptive DDoS Protection\n ... \nSection Title: Cloudflare DDoS Protection > Related products\nContent:\n**Spectrum**\nProvides security and acceleration for any TCP or UDP based application.\n**Magic Transit**\nA network security and performance solution that offers DDoS protection, traffic acceleration, and more for on-premise, cloud-hosted, and hybrid networks.\n**Web Application Firewall (WAF)**\nGet automatic protection from vulnerabilities and the flexibility to create custom rules.\n ... \nSection Title: Cloudflare DDoS Protection > Related products\nContent:\n](https://isbgpsafeyet.com/)\n[RPKI Toolkit](https://rpki.cloudflare.com/)\n[Certificate Transparency](https://ct.cloudflare.com/)\n**Community**\n[X](https://x.com/cloudflare)\n[Discord](http://discord.cloudflare.com/)\n[YouTube](https://www.youtube.com/cloudflare)\n[GitHub](https://github.com/cloudflare/cloudflare-docs)\n[Privacy Policy](https://www.cloudflare.com/privacypolicy/)\n[Terms of Use](https://www.cloudflare.com/website-terms/)\n[Report Security Issues](https://www.cloudflare.com/disclosure/)\n[Trademark](https://www.cloudflare.com/trademark/)\nCookie Settings\nSection Title: Cloudflare DDoS Protection > Related products\nContent:\nNext Get started\n[Edit page](https://github.com/cloudflare/cloudflare-docs/edit/production/src/content/docs/ddos-protection/index.mdx)\nLast updated: Feb 12, 2026"
+      ]
+    },
+    {
+      "url": "https://developers.cloudflare.com/cloudflare-challenges/",
+      "title": "Challenges \u00b7 Cloudflare challenges docs",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Challenges > Related products\nContent:\n**Turnstile**\nUse Cloudflare's smart CAPTCHA alternative to run less intrusive Challenges.\n**Bots**\nCloudflare bot solutions identify and mitigate automated traffic to protect\nyour domain from bad bots.\n**WAF**\nGet automatic protection from vulnerabilities and the flexibility to create\ncustom rules.\n**DDoS Protection**\nDetect and mitigate Distributed Denial of Service (DDoS) attacks using Cloudflare's Autonomous Edge."
+      ]
+    },
+    {
+      "url": "https://www.cloudflare.com/impact-portal/website-security/",
+      "title": "Website Security | Cloudflare Social Impact Projects Portal | Cloudflare",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Website security > Notifications\nContent:\nManage your notifications to define what you want to be warned about and how. We recommend enabling:\n**Passive Origin Monitoring Alerts** : Get notified when your origin web server is unreachable from our edge network for at least 5 minutes so you can quickly fix the issue.\n**HTTPS DDoS Alerts** : Sign up for a real-time email when Cloudflare automatically detects and mitigates a DDoS attack that targets your Internet property.\n**Security Events Alert** : Receive an alert within two hours of any spike of firewall-related events across all Cloudflare services that generate related log entries.\n[Learn more](https://developers.cloudflare.com/fundamentals/notifications/notification-available/)"
+      ]
+    },
+    {
+      "url": "https://www.youtube.com/watch%3Fv%3DPR8iU-L8WcA",
+      "title": "How to Add a Website to Cloudflare (Step-by-Step for Beginners)",
+      "publish_date": null,
+      "excerpts": [
+        "Dec 10, 2023 \u00b7 setting up your site with Cloudflare to enhance its security and ... Settings \u25bbTesting Your Website \u2014 \u2014 \u2014 \u2014 \u2014 \u2014 \u2014 \u2014 \u2014 \u2014 TOPICS +\u00a0..."
+      ]
+    },
+    {
+      "url": "https://www.reddit.com/r/CloudFlare/comments/1clkqqy/how_to_install_cloudflare_security_check_like/",
+      "title": "How to install Cloudflare security check like this on a website? - Reddit",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: How to install Cloudflare security check like this on a website?\nContent:\nSorry, this post was deleted by the person who originally posted it.\nShare\nYear in Review 2024 Report is now [live](https://radar.cloudflare.com/year-in-review/2024) !\nPublic\nAnyone can view, post, and comment to this community\n0 0\nSection Title: How to install Cloudflare security check like this on a website? > Top Posts\nContent:\n[Reddit reReddit: Top posts of May 6, 2024 * * *](https://www.reddit.com/posts/2024/may-6-1/global/)\n[Reddit reReddit: Top posts of May 2024 * * *](https://www.reddit.com/posts/2024/may/global/)\n[Reddit reReddit: Top posts of 2024 * * *](https://www.reddit.com/posts/2024/global/)\nExpand Navigation Collapse Navigation"
+      ]
+    },
+    {
+      "url": "https://community.cloudflare.com/t/security-best-practices-for-cloudflare-configurations/400967",
+      "title": "Security Best Practices For Cloudflare Configurations - Application Security / DOS / DDOS - Cloudflare Community",
+      "publish_date": "2022-07-21",
+      "excerpts": [
+        "Section Title: Security Best Practices For Cloudflare Configurations > post by fritex on Jul 21, 2022\nContent:\n[Understanding your site protection options](https://support.cloudflare.com/hc/en-us/articles/115002059131-Understanding-your-site-protection-options)\n[Responding to DDoS attacks](https://support.cloudflare.com/hc/en-us/articles/200170196-Responding-to-DDoS-attacks)\n[Best Practices: DDoS preventative measures](https://support.cloudflare.com/hc/en-us/articles/200170166-Best-Practices-DDoS-preventative-measures)\n[Understanding Cloudflare DDoS protection](https://support.cloudflare.com/hc/en-us/articles/200172676-Understanding-Cloudflare-DDoS-protection)\n[Mitigating an HTTP DDoS Attack manually with Cloudflare](https://community.cloudflare.com/t/mitigating-an-http-ddos-attack-manually-with-cloudflare/302366) Tutorial\nSection Title: Security Best Practices For Cloudflare Configurations > post by fritex on Jul 21, 2022\nContent:\nThis guide is for those users of Cloudflare who experience medium-high level complexity DDoS attacks. Continue reading if you want to accomplish the following: Becoming more familiar with the Cloudflare Dashboard and crafting custom firewall rules.\nUnderstanding the standard behavior of DDoS attacks and deploying effective firewall rules.\nRealizing how powerful and valuable Cloudflare Firewall Rules are.\nI initially thought of making a more complex guide (I will). However, I realized that no\u2026\n[Deprecated - Under DDoS Attack! First steps](https://community.cloudflare.com/t/under-ddos-attack-first-steps/89476) Tutorial\nThis tutorial is deprecated in favour of [Get started \u00b7 Cloudflare DDoS Protection docs](https://developers.cloudflare.com/ddos-protection/get-started/) Related content:Archive\nwaiyan.phyo:\nthere are a lot security hardening parts missing and so we want to setup security best practices\nSection Title: Security Best Practices For Cloudflare Configurations > post by fritex on Jul 21, 2022\nContent:\nEach Website is different, meaning not all apply for each, if so.\nIf using Pro plan or higher, with a single click you can enable Cloudflare WAF and configure the rules as needed which provide really good protection.\nThere is also Bot Fight Mode too and other tools like IP Access Rules, etc.\nRate Limiting is also a good feature to try out.\nHere are few my posts which include external resources such as some specific Firewall Rules to protect WordPress, firewall tips, bad bots \u201cuser-agents\u201d, asn list, etc.\n[What Request to Block in Firewall for Wordpress and Normalize URLs](https://community.cloudflare.com/t/what-request-to-block-in-firewall-for-wordpress-and-normalize-urls/324758/2) DOS / DDOS\nSection Title: Security Best Practices For Cloudflare Configurations > post by fritex on Jul 21, 2022\nContent:\nThat is a good question out there. I would say it cannot be stated as a general rule of thumb, as far as some WordPress websites do not have to use like POST or PUT (WP REST API, wp-json, plugins etc.), while other have to - just an example. You could try to block TRACE & TRACK for example. Or, if you could for example, limit HEAD, GET and POST for some specific IP or some similar scenario, where you protect your Website from bad bots, possible attacks, etc. in terms of security measurements. \u2026\n[Unable to Stop Ddos attack . Please help](https://community.cloudflare.com/t/unable-to-stop-ddos-attack-please-help/297908/3) SSL / TLS\n ... \nSection Title: Security Best Practices For Cloudflare Configurations > Closed on Aug 5, 2022 > New & Unread Topics\nContent:\nDOS / DDOS |1 |44 |Dec 2025 |\n|Hello, is it possible to find out on Cloudflare how many people leave the website\nDOS / DDOS |1 |26 |Jun 2025 |\n|DDOS under attack resolve a fake DDOS\nDOS / DDOS |0 |35 |Oct 2025 |\n|My Hetzner IP may be banned and captcha not resolved\nDOS / DDOS |2 |76 |Jul 2025 |\n|DDOS attack on website, causing crash\nDOS / DDOS |3 |78 |Jul 2025 |"
+      ]
+    },
+    {
+      "url": "https://www.youtube.com/watch%3Fv%3D8KuVxzl-jlY",
+      "title": "Build a Secure Website with Cloudflare Enterprise - YouTube",
+      "publish_date": null,
+      "excerpts": [
+        "Jul 13, 2025 \u00b7 ... website's security, improve performance, and ensure scalability with Cloudflare's advanced features. ... Comments. 7. Add a comment... 12:08."
+      ]
+    },
+    {
+      "url": "https://ignitedigital.com/resources/blog/website-development/setting-up-cloudflare-for-better-website-security/",
+      "title": "Setup Cloudflare for Better Website Security | Ignite Digital",
+      "publish_date": "2025-11-12",
+      "excerpts": [
+        "Section Title: Setting Up Cloudflare for Better Website Security > Understanding Cloudflare and Its Benefits\nContent:\nUnderstanding how to setup Cloudflare can transform your website\u2019s performance and security. Cloudflare acts as a reverse proxy, managing incoming traffic and filtering out threats while optimizing content delivery. Here are some key benefits of a Cloudflare setup:\n**Enhanced Security:** Protects against DDoS attacks, SQL injections, and other cyber threats.\n**Improved Performance:** Global servers reduce latency and ensure faster load times.\n**Reduced Server Load:** Caches content and distributes it through a global network, easing the burden on your Cloudflare server.\nBy learning how to use Cloudflare DNS and following a straightforward Cloudflare install process, you can significantly boost your website\u2019s SEO.\n ... \nSection Title: Setting Up Cloudflare for Better Website Security > 3. Utilize Security Apps\nContent:\nCloudflare offers various security apps that can further enhance your website\u2019s protection. Apps like Bot Management and Rate Limiting can help mitigate automated attacks and excessive requests. Explore these apps in the Cloudflare dashboard and enable those that fit your security requirements.\nFor comprehensive web development , understanding how to use Cloudflare DNS and performing a proper Cloudflare install can greatly enhance your website\u2019s security posture. By integrating these features to setup Cloudflare, you ensure a more secure and reliable experience for your users."
+      ]
+    }
+  ],
+  "warnings": null
+}

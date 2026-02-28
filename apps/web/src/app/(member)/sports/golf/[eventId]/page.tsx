@@ -1,0 +1,564 @@
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams, usePathname, useRouter } from 'next/navigation';
+import { apiGet } from '@/lib/api';
+import { connectSocket, getSocket, joinEventRoom, leaveEventRoom } from '@/lib/socket';
+import { useBetSlipStore } from '@/stores/betSlipStore';
+import { useAuthStore } from '@/stores/authStore';
+
+type MarketSelection = {
+  id: string;
+  name: string;
+  odds: number;
+  line?: string;
+  suspended?: boolean;
+};
+
+type Market = {
+  id: string;
+  name: string;
+  type: string;
+  selections: MarketSelection[];
+};
+
+type LeaderboardRow = {
+  id: string;
+  pos: number;
+  trend: 'up' | 'down' | 'same';
+  player: string;
+  r1: number;
+  r2: number;
+  r3: number;
+  r4: number;
+  total: number;
+  odds: number;
+};
+
+type GolfEvent = {
+  id: string;
+  league: string;
+  startTime: string;
+  status: 'upcoming' | 'live' | 'finished';
+  homeTeam: { name: string };
+  awayTeam: { name: string };
+  markets: Market[];
+  tournamentName?: string;
+  course?: string;
+  round?: string;
+  leaderboard?: LeaderboardRow[];
+};
+
+type EventMarketsResponse = {
+  event: Omit<GolfEvent, 'markets'>;
+  markets: Market[];
+};
+
+type BetPick = {
+  id: string;
+  market: string;
+  selection: string;
+  odds: number;
+};
+
+const MEMBER_NAV_LINKS = [
+  { href: '/sports', label: 'Sports' },
+  { href: '/in-play', label: 'In-Play' },
+  { href: '/live', label: 'Live Stream' },
+  { href: '/my-bets', label: 'My Bets' },
+  { href: '/results', label: 'Results' },
+  { href: '/account', label: 'Account' },
+];
+
+function LiveBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[#EF4444]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#EF4444]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444]" /> Live
+    </span>
+  );
+}
+
+function OddsButton({
+  label,
+  odds,
+  active,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  odds: number;
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-lg border px-2 py-2 text-center transition-all ${
+        disabled
+          ? 'cursor-not-allowed border-[#1E293B] bg-[#0B0E1A]/40 text-[#64748B]'
+          : active
+            ? 'border-[#00C37B] bg-[#00C37B]/15 text-[#00C37B]'
+            : 'border-[#1E293B] bg-[#0B0E1A] text-white hover:border-[#00C37B]/60'
+      }`}
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">{label}</div>
+      <div className="mt-0.5 font-mono text-[15px] font-bold text-[#F59E0B]">{odds.toFixed(2)}</div>
+    </button>
+  );
+}
+
+function MarketAccordion({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#1E293B] bg-[#1A2235]">
+      <button
+        onClick={() => setOpen((s) => !s)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
+        <span className="text-sm font-semibold text-white">{title}</span>
+        <span className="text-[#94A3B8]">{open ? '−' : '+'}</span>
+      </button>
+      {open ? <div className="border-t border-[#1E293B] p-3">{children}</div> : null}
+    </div>
+  );
+}
+
+function SportSidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="w-[240px] shrink-0 border-r border-[#1E293B] bg-[#111827]">
+      <div className="flex h-16 items-center gap-2 border-b border-[#1E293B] px-6">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="text-[#00C37B]">
+          <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
+        </svg>
+        <span className="text-[20px] font-extrabold tracking-tight text-white">BET<span className="text-[#00C37B]">ARENA</span></span>
+      </div>
+      <nav className="space-y-1 p-3">
+        {MEMBER_NAV_LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={`block rounded-md px-3 py-2.5 text-sm transition-colors ${
+              pathname === l.href
+                ? 'bg-[#1A2235] text-white'
+                : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
+            }`}
+          >
+            {l.label}
+          </Link>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+function TopHeader() {
+  const pathname = usePathname();
+
+  return (
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#1E293B] bg-[#111827]/80 px-6 backdrop-blur">
+      <nav className="flex gap-1">
+        {MEMBER_NAV_LINKS.map((t) => (
+          <Link
+            key={t.href}
+            href={t.href}
+            className={`rounded px-4 py-2 text-sm font-medium transition-colors ${
+              pathname === t.href
+                ? 'bg-[#1A2235] text-white'
+                : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
+            }`}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+      <div className="flex items-center gap-4">
+        <div className="rounded-full border border-[#1E293B] bg-[#0B0E1A] px-3 py-1.5 font-mono text-[13px] font-bold text-[#00C37B]">$2,450.50</div>
+        <div className="h-9 w-9 rounded-full border-2 border-[#1A2235] bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6]" />
+      </div>
+    </header>
+  );
+}
+
+function trendArrow(trend: LeaderboardRow['trend']) {
+  if (trend === 'up') return '↑';
+  if (trend === 'down') return '↓';
+  return '→';
+}
+
+function scoreClass(score: number) {
+  if (score < 70) return 'text-[#EF4444]';
+  if (score > 72) return 'text-[#0F172A]';
+  return 'text-[#E2E8F0]';
+}
+
+function BetSlip({ picks, onRemove }: { picks: BetPick[]; onRemove: (id: string) => void }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const totalOdds = picks.reduce((acc, p) => acc * p.odds, 1);
+  const [stake, setStake] = useState('10');
+  const stakeNum = Number(stake) || 0;
+
+  return (
+    <div className="rounded-xl border border-[#1E293B] bg-[#111827] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-white">Bet Slip</h3>
+        <span className="rounded bg-[#1A2235] px-2 py-1 text-xs text-[#94A3B8]">{picks.length} picks</span>
+      </div>
+
+      <div className="space-y-2">
+        {picks.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-[#1E293B] p-4 text-center text-sm text-[#64748B]">Select odds to add bet picks</div>
+        ) : (
+          picks.map((p) => (
+            <div key={p.id} className="rounded-lg border border-[#1E293B] bg-[#1A2235] p-3">
+              <div className="text-xs text-[#94A3B8]">{p.market}</div>
+              <div className="mt-1 text-sm font-semibold text-white">{p.selection}</div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="font-mono text-sm text-[#F59E0B]">{p.odds.toFixed(2)}</span>
+                <button onClick={() => onRemove(p.id)} className="text-xs text-[#EF4444] hover:text-[#ff6b6b]">Remove</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-[#1E293B] pt-4">
+        <label className="mb-1 block text-xs text-[#94A3B8]">Stake</label>
+        <input
+          value={stake}
+          onChange={(e) => setStake(e.target.value)}
+          className="w-full rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-3 py-2 font-mono text-white"
+        />
+        <div className="mt-2 flex items-center justify-between text-xs text-[#94A3B8]">
+          <span>Total Odds</span>
+          <span className="font-mono text-white">{picks.length ? totalOdds.toFixed(2) : '0.00'}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]">
+          <span>Potential Return</span>
+          <span className="font-mono text-[#00C37B]">{(stakeNum * (picks.length ? totalOdds : 0)).toFixed(2)}</span>
+        </div>
+        <button
+          onClick={() => {
+            if (!isAuthenticated) {
+              const next = encodeURIComponent(pathname || '/sports');
+              router.push(`/login?next=${next}`);
+              return;
+            }
+          }}
+          className="mt-3 w-full rounded-lg bg-[#00C37B] py-2.5 text-sm font-bold text-[#0B0E1A] hover:bg-[#00b974] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!picks.length}
+        >
+          Place Bet
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function GolfTournamentPage() {
+  const params = useParams<{ eventId: string }>();
+  const router = useRouter();
+  const eventId = params?.eventId ?? '';
+
+  const [event, setEvent] = useState<GolfEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [picks, setPicks] = useState<BetPick[]>([]);
+  const sharedPicks = useBetSlipStore((s) => s.picks);
+  const toggleSharedPick = useBetSlipStore((s) => s.togglePick);
+  const removeSharedPick = useBetSlipStore((s) => s.removePick);
+
+  const fallbackLeaderboard: LeaderboardRow[] = useMemo(
+    () => [
+      { id: 'p1', pos: 1, trend: 'up', player: 'R. McIlroy', r1: 67, r2: 66, r3: 0, r4: 0, total: -11, odds: 3.8 },
+      { id: 'p2', pos: 2, trend: 'same', player: 'S. Scheffler', r1: 68, r2: 66, r3: 0, r4: 0, total: -10, odds: 4.2 },
+      { id: 'p3', pos: 3, trend: 'up', player: 'J. Rahm', r1: 69, r2: 66, r3: 0, r4: 0, total: -9, odds: 5.0 },
+      { id: 'p4', pos: 4, trend: 'down', player: 'V. Hovland', r1: 67, r2: 69, r3: 0, r4: 0, total: -8, odds: 7.5 },
+      { id: 'p5', pos: 5, trend: 'same', player: 'C. Morikawa', r1: 69, r2: 68, r3: 0, r4: 0, total: -7, odds: 9.0 },
+      { id: 'p6', pos: 6, trend: 'up', player: 'B. DeChambeau', r1: 70, r2: 68, r3: 0, r4: 0, total: -6, odds: 11.5 },
+      { id: 'p7', pos: 7, trend: 'down', player: 'X. Schauffele', r1: 69, r2: 70, r3: 0, r4: 0, total: -5, odds: 13.0 },
+      { id: 'p8', pos: 8, trend: 'same', player: 'M. Fitzpatrick', r1: 71, r2: 68, r3: 0, r4: 0, total: -4, odds: 15.0 },
+    ],
+    [],
+  );
+
+  const buildFallbackEvent = useCallback(
+    (id: string): GolfEvent => ({
+      id: id || 'demo',
+      league: 'PGA Tour',
+      startTime: new Date().toISOString(),
+      status: 'live',
+      homeTeam: { name: 'Field A' },
+      awayTeam: { name: 'Field B' },
+      tournamentName: 'BetArena Invitational',
+      course: 'Augusta National',
+      round: 'R2 of 4',
+      leaderboard: fallbackLeaderboard,
+      markets: [],
+    }),
+    [fallbackLeaderboard],
+  );
+
+  const loadEvent = useCallback(async () => {
+    if (!eventId) return;
+    setError(null);
+
+    try {
+      const res = await apiGet<EventMarketsResponse | GolfEvent>(`/api/sports/events/${eventId}/markets`);
+      if (!res.success || !res.data) {
+        setEvent(buildFallbackEvent(eventId));
+        return;
+      }
+
+      const payload = res.data as EventMarketsResponse | GolfEvent;
+      const normalized = 'event' in payload ? { ...payload.event, markets: payload.markets ?? [] } : payload;
+
+      setEvent((prev) => ({
+        ...(prev ?? {}),
+        ...normalized,
+        id: String(normalized.id ?? eventId),
+        league: normalized.league || 'PGA Tour',
+        status: normalized.status || 'live',
+        tournamentName: normalized.tournamentName || normalized.league || 'PGA Championship',
+        course: normalized.course || 'Augusta National',
+        round: normalized.round || 'R2 of 4',
+        leaderboard: normalized.leaderboard ?? fallbackLeaderboard,
+        markets: normalized.markets ?? [],
+      } as GolfEvent));
+    } catch {
+      try {
+        const uncachedEventsUrl = `/api/sports/golf/events?ts=${Date.now()}`;
+        const listRes = await apiGet<Array<{ id: number | string }>>(uncachedEventsUrl, {
+          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        });
+        const first = listRes.data?.[0];
+        if (first && String(first.id) !== String(eventId)) {
+          router.replace(`/sports/golf/${first.id}`);
+          return;
+        }
+      } catch {
+        // Ignore fallback error.
+      }
+      setEvent(buildFallbackEvent(eventId));
+    } finally {
+      setLoading(false);
+    }
+  }, [buildFallbackEvent, eventId, fallbackLeaderboard, router]);
+
+  useEffect(() => {
+    loadEvent();
+  }, [loadEvent]);
+
+  useEffect(() => {
+    setPicks(sharedPicks as BetPick[]);
+  }, [sharedPicks]);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    connectSocket(typeof window !== 'undefined' ? localStorage.getItem('accessToken') ?? undefined : undefined);
+    joinEventRoom(eventId);
+    const socket = getSocket();
+
+    const onEventUpdate = (data: Partial<GolfEvent>) => {
+      setEvent((prev) => (prev ? { ...prev, ...data } : prev));
+    };
+
+    const onOddsUpdate = (data: { markets?: Array<{ marketId?: string; selections: MarketSelection[] }> }) => {
+      setEvent((prev) => {
+        if (!prev || !Array.isArray(data.markets)) return prev;
+        return {
+          ...prev,
+          markets: prev.markets.map((m) => {
+            const incoming = data.markets?.find((im) => (im.marketId ?? '') === m.id);
+            return incoming ? { ...m, selections: incoming.selections } : m;
+          }),
+        };
+      });
+    };
+
+    socket.on('event:update', onEventUpdate);
+    socket.on('odds:update', onOddsUpdate);
+
+    return () => {
+      leaveEventRoom(eventId);
+      socket.off('event:update', onEventUpdate);
+      socket.off('odds:update', onOddsUpdate);
+    };
+  }, [eventId]);
+
+  const marketGroups = useMemo(
+    () => [
+      { key: 'tournament_winner', title: 'Tournament Winner' },
+      { key: 'top_5_finish', title: 'Top 5 Finish' },
+      { key: 'top_10_finish', title: 'Top 10 Finish' },
+      { key: 'top_20_finish', title: 'Top 20 Finish' },
+      { key: 'make_miss_cut', title: 'Make/Miss The Cut' },
+      { key: 'head_to_head', title: 'Head to Head Matchups' },
+      { key: 'winning_score_ou', title: 'Winning Score Over/Under' },
+      { key: 'country_winner', title: 'Country of Winner' },
+    ],
+    [],
+  );
+
+  const defaultMarkets: Record<string, MarketSelection[]> = {
+    tournament_winner: fallbackLeaderboard.slice(0, 8).map((p) => ({ id: `tw_${p.id}`, name: p.player, odds: p.odds })),
+    top_5_finish: fallbackLeaderboard.slice(0, 8).map((p, idx) => ({ id: `t5_${idx}`, name: p.player, odds: Number((p.odds / 2.2).toFixed(2)) })),
+    top_10_finish: fallbackLeaderboard.slice(0, 8).map((p, idx) => ({ id: `t10_${idx}`, name: p.player, odds: Number((p.odds / 3.1).toFixed(2)) })),
+    top_20_finish: fallbackLeaderboard.slice(0, 8).map((p, idx) => ({ id: `t20_${idx}`, name: p.player, odds: Number((p.odds / 4.0).toFixed(2)) })),
+    make_miss_cut: [
+      { id: 'mmc_make', name: 'Make Cut', odds: 1.55 },
+      { id: 'mmc_miss', name: 'Miss Cut', odds: 2.45 },
+    ],
+    head_to_head: [
+      { id: 'h2h_1', name: 'McIlroy vs Rahm', odds: 1.88 },
+      { id: 'h2h_2', name: 'Scheffler vs Hovland', odds: 1.91 },
+      { id: 'h2h_3', name: 'Morikawa vs Fitzpatrick', odds: 1.86 },
+    ],
+    winning_score_ou: [
+      { id: 'wso_over', name: 'Over -14.5', odds: 1.90 },
+      { id: 'wso_under', name: 'Under -14.5', odds: 1.90 },
+    ],
+    country_winner: [
+      { id: 'cw_usa', name: 'USA', odds: 1.72 },
+      { id: 'cw_irl', name: 'Ireland', odds: 3.2 },
+      { id: 'cw_spain', name: 'Spain', odds: 4.0 },
+      { id: 'cw_uk', name: 'UK', odds: 4.8 },
+    ],
+  };
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center bg-[#0B0E1A] text-[#94A3B8]">Loading golf tournament...</div>;
+  }
+
+  if (!event) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#0B0E1A] px-6 text-center text-[#EF4444]">
+        {error ?? 'Golf tournament not found'}
+      </div>
+    );
+  }
+
+  const leaderboard = event.leaderboard ?? fallbackLeaderboard;
+  const top3 = leaderboard.slice(0, 3);
+  const marketByType = new Map((event.markets ?? []).map((m) => [m.type || m.name.toLowerCase().replace(/\s+/g, '_'), m]));
+
+  const addPick = (pick: BetPick) => {
+    setPicks((prev) => (prev.some((p) => p.id === pick.id) ? prev.filter((p) => p.id !== pick.id) : [...prev, pick]));
+    toggleSharedPick(pick);
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#0B0E1A] text-[#F1F5F9]">
+      <SportSidebar />
+
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <TopHeader />
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <section className="mb-4 rounded-xl border border-[#1E293B] bg-[#1A2235] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-bold text-white">{event.tournamentName}</h1>
+                <div className="mt-1 text-sm text-[#94A3B8]">{event.course} • {event.round}</div>
+              </div>
+              {event.status === 'live' ? <LiveBadge /> : null}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {top3.map((r) => (
+                <div key={r.id} className="rounded-lg border border-[#1E293B] bg-[#111827] p-3">
+                  <div className="text-xs text-[#64748B]">#{r.pos}</div>
+                  <div className="mt-1 font-semibold text-white">{r.player}</div>
+                  <div className="mt-1 font-mono text-sm text-[#00C37B]">{r.total > 0 ? `+${r.total}` : r.total}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-[65%_35%]">
+            <div className="rounded-xl border border-[#1E293B] bg-[#1A2235] p-4">
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#94A3B8]">Tournament Leaderboard</h2>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[820px] text-sm">
+                  <thead>
+                    <tr className="border-b border-[#1E293B] text-xs uppercase tracking-wide text-[#64748B]">
+                      <th className="px-2 py-2 text-left">Pos</th>
+                      <th className="px-2 py-2 text-left">Player</th>
+                      <th className="px-2 py-2 text-center">R1</th>
+                      <th className="px-2 py-2 text-center">R2</th>
+                      <th className="px-2 py-2 text-center">R3</th>
+                      <th className="px-2 py-2 text-center">R4</th>
+                      <th className="px-2 py-2 text-center">Total</th>
+                      <th className="px-2 py-2 text-center">Odds</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row) => (
+                      <tr key={row.id} className="border-b border-[#1E293B]/50">
+                        <td className="px-2 py-2">
+                          <span className="mr-1 text-[#94A3B8]">{trendArrow(row.trend)}</span>
+                          <span className="font-semibold text-white">{row.pos}</span>
+                        </td>
+                        <td className="px-2 py-2 font-semibold text-white">{row.player}</td>
+                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r1)}`}>{row.r1 || '-'}</td>
+                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r2)}`}>{row.r2 || '-'}</td>
+                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r3)}`}>{row.r3 || '-'}</td>
+                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r4)}`}>{row.r4 || '-'}</td>
+                        <td className="px-2 py-2 text-center font-mono text-lg font-bold text-[#00C37B]">{row.total > 0 ? `+${row.total}` : row.total}</td>
+                        <td className="px-2 py-2">
+                          <OddsButton
+                            label="Outright"
+                            odds={row.odds}
+                            active={picks.some((p) => p.id === `lb_${row.id}`)}
+                            onClick={() => addPick({ id: `lb_${row.id}`, market: 'Tournament Winner', selection: row.player, odds: row.odds })}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {marketGroups.map((g) => {
+                const market = marketByType.get(g.key);
+                const selections = market?.selections?.length ? market.selections : defaultMarkets[g.key] ?? [];
+
+                return (
+                  <MarketAccordion key={g.key} title={g.title} defaultOpen={g.key === 'tournament_winner'}>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selections.map((s) => (
+                        <OddsButton
+                          key={s.id}
+                          label={s.name}
+                          odds={s.odds}
+                          active={picks.some((p) => p.id === s.id)}
+                          disabled={s.suspended}
+                          onClick={() => addPick({ id: s.id, market: g.title, selection: s.name, odds: s.odds })}
+                        />
+                      ))}
+                    </div>
+                  </MarketAccordion>
+                );
+              })}
+
+              <BetSlip picks={picks} onRemove={(id) => {
+                setPicks((prev) => prev.filter((p) => p.id !== id));
+                removeSharedPick(id);
+              }} />
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
