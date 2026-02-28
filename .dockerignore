@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+
+# Version control
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+.env.local
+.env.*.local
+
+# IDE & editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# CI/CD & docs
+.github
+*.md
+
+# Claude
+.claude
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+coverage
+**/coverage
+*.test.ts
+*.spec.ts
+__tests__
+__mocks__
+
+# Docker
+**/Dockerfile
+docker-compose*.yml
