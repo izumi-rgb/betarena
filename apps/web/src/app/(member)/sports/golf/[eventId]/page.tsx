@@ -57,7 +57,9 @@ type EventMarketsResponse = {
 
 type BetPick = {
   id: string;
+  eventId: number;
   market: string;
+  marketType: string;
   selection: string;
   odds: number;
 };
@@ -518,7 +520,7 @@ export default function GolfTournamentPage() {
                             label="Outright"
                             odds={row.odds}
                             active={picks.some((p) => p.id === `lb_${row.id}`)}
-                            onClick={() => addPick({ id: `lb_${row.id}`, market: 'Tournament Winner', selection: row.player, odds: row.odds })}
+                            onClick={() => addPick({ id: `lb_${row.id}`, eventId: Number(eventId), market: 'Tournament Winner', marketType: 'tournament_winner', selection: row.player, odds: row.odds })}
                           />
                         </td>
                       </tr>
@@ -543,7 +545,7 @@ export default function GolfTournamentPage() {
                           odds={s.odds}
                           active={picks.some((p) => p.id === s.id)}
                           disabled={s.suspended}
-                          onClick={() => addPick({ id: s.id, market: g.title, selection: s.name, odds: s.odds })}
+                          onClick={() => addPick({ id: s.id, eventId: Number(eventId), market: g.title, marketType: g.key, selection: s.name, odds: s.odds })}
                         />
                       ))}
                     </div>

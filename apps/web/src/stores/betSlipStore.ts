@@ -5,7 +5,9 @@ import { persist } from 'zustand/middleware';
 
 export interface BetSlipPick {
   id: string;
+  eventId: number;
   market: string;
+  marketType: string;
   selection: string;
   odds: number;
 }

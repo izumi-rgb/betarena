@@ -53,7 +53,9 @@ type EventMarketsResponse = {
 
 type BetPick = {
   id: string;
+  eventId: number;
   market: string;
+  marketType: string;
   selection: string;
   odds: number;
 };
@@ -193,7 +195,7 @@ function TopHeader() {
   );
 }
 
-function MatchCard({ event, onPick, picks }: { event: BasketballEvent; onPick: (pick: BetPick) => void; picks: BetPick[] }) {
+function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; onPick: (pick: BetPick) => void; picks: BetPick[]; eventId: number }) {
   const stats = event.stats ?? {
     fgPercent: [49, 46],
     threePtPercent: [38, 35],
@@ -354,7 +356,7 @@ function MatchCard({ event, onPick, picks }: { event: BasketballEvent; onPick: (
                     odds={s.odds}
                     active={active}
                     disabled={s.suspended}
-                    onClick={() => onPick({ id: s.id, market: g.title, selection: s.name, odds: s.odds })}
+                    onClick={() => onPick({ id: s.id, eventId, market: g.title, marketType: g.key, selection: s.name, odds: s.odds })}
                   />
                 );
               })}
@@ -568,7 +570,7 @@ export default function BasketballMatchPage() {
         <TopHeader />
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6">
-            <MatchCard event={event} onPick={handlePick} picks={picks} />
+            <MatchCard event={event} onPick={handlePick} picks={picks} eventId={Number(eventId)} />
           </div>
           <BetSlip picks={picks} onRemove={(id) => {
             setPicks((prev) => prev.filter((p) => p.id !== id));
