@@ -1,0 +1,23 @@
+# ══════════════════════════════════════════════════════════════
+# Dev-only overrides (auto-merged by `docker compose up`)
+# - Remap Postgres to 5433 and Redis to 6380 so they don't
+#   clash with any local instances on default ports.
+# - Disable api/web containers — devs run those locally.
+# ══════════════════════════════════════════════════════════════
+
+services:
+  postgres:
+    ports:
+      - '5433:5432'
+
+  redis:
+    ports:
+      - '6380:6379'
+
+  api:
+    profiles:
+      - production
+
+  web:
+    profiles:
+      - production
