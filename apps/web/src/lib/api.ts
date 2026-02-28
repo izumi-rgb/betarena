@@ -36,6 +36,19 @@ function processQueue(error: unknown, token: string | null) {
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
+    // Rate limit handling
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'] || '60';
+      // Dynamic import to avoid circular deps
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: 'Too many requests',
+        description: `Please wait ${retryAfter} seconds before trying again.`,
+        variant: 'destructive',
+      });
+      return Promise.reject(error);
+    }
+
     const original = error.config as AxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status !== 401 || original._retry) {
