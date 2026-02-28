@@ -1,6 +1,8 @@
 import db from '../../config/database';
 import redis from '../../config/redis';
 import { ODDS_CACHE_TTL_SECONDS } from '../../config/constants';
+import * as SportsDataService from '../sports-data/sports-data.service';
+import logger from '../../config/logger';
 
 /** Slug for URL/tabs: "American Football" -> "american-football" */
 function sportToSlug(sport: string): string {
@@ -139,6 +141,26 @@ export async function getEventMarkets(eventId: number) {
   const cached = await redis.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
+  // Try real sports data providers first
+  try {
+    const markets = await SportsDataService.getMarkets(String(eventId));
+    if (markets.length > 0) {
+      const event = await db('events').where({ id: eventId }).first();
+      const result = {
+        event: event ? mapEventRow(event) : null,
+        markets,
+      };
+      await redis.setex(cacheKey, ODDS_CACHE_TTL_SECONDS, JSON.stringify(result));
+      return result;
+    }
+  } catch (err) {
+    logger.warn('SportsDataService.getMarkets failed, falling back to DB', {
+      eventId,
+      error: (err as Error).message,
+    });
+  }
+
+  // Fallback: local DB query
   const odds = await db('odds').where({ event_id: eventId });
   const event = await db('events').where({ id: eventId }).first();
 
@@ -154,6 +176,19 @@ export async function getEventMarkets(eventId: number) {
 }
 
 export async function getLiveEvents() {
+  // Try real sports data providers first
+  try {
+    const liveEvents = await SportsDataService.getLiveEvents();
+    if (liveEvents.length > 0) {
+      return liveEvents;
+    }
+  } catch (err) {
+    logger.warn('SportsDataService.getLiveEvents failed, falling back to DB', {
+      error: (err as Error).message,
+    });
+  }
+
+  // Fallback: local DB query
   const rows = await db('events')
     .where({ status: 'live' })
     .orderBy('starts_at', 'asc');
