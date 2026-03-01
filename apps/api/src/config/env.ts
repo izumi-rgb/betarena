@@ -19,12 +19,16 @@ export const env = {
   NODE_ENV: optionalEnv('NODE_ENV', 'development'),
   PORT: parseInt(optionalEnv('PORT', '4000'), 10),
 
-  DB_HOST: requireEnv('DB_HOST'),
+  // Database — prefer DATABASE_URL (Railway), fall back to individual vars
+  DATABASE_URL: process.env.DATABASE_URL || '',
+  DB_HOST: process.env.DATABASE_URL ? '' : requireEnv('DB_HOST'),
   DB_PORT: parseInt(optionalEnv('DB_PORT', '5432'), 10),
-  DB_NAME: requireEnv('DB_NAME'),
-  DB_USER: requireEnv('DB_USER'),
-  DB_PASSWORD: requireEnv('DB_PASSWORD'),
+  DB_NAME: process.env.DATABASE_URL ? '' : requireEnv('DB_NAME'),
+  DB_USER: process.env.DATABASE_URL ? '' : requireEnv('DB_USER'),
+  DB_PASSWORD: process.env.DATABASE_URL ? '' : requireEnv('DB_PASSWORD'),
 
+  // Redis — prefer REDIS_URL (Railway), fall back to individual vars
+  REDIS_URL: process.env.REDIS_URL || '',
   REDIS_HOST: optionalEnv('REDIS_HOST', '127.0.0.1'),
   REDIS_PORT: parseInt(optionalEnv('REDIS_PORT', '6379'), 10),
   REDIS_PASSWORD: optionalEnv('REDIS_PASSWORD', ''),
