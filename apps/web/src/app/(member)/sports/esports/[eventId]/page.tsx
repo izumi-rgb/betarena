@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api';
 import { connectSocket, getSocket, joinEventRoom, leaveEventRoom } from '@/lib/socket';
 import { useBetSlipStore } from '@/stores/betSlipStore';
 import { useAuthStore } from '@/stores/authStore';
+import { SportSidebar, TopHeader } from '@/components/app/SportSidebar';
 
 type MarketSelection = {
   id: string;
@@ -50,15 +50,6 @@ type BetPick = {
   selection: string;
   odds: number;
 };
-
-const MEMBER_NAV_LINKS = [
-  { href: '/sports', label: 'Sports' },
-  { href: '/in-play', label: 'In-Play' },
-  { href: '/live', label: 'Live Stream' },
-  { href: '/my-bets', label: 'My Bets' },
-  { href: '/results', label: 'Results' },
-  { href: '/account', label: 'Account' },
-];
 
 function LiveBadge() {
   return (
@@ -112,64 +103,6 @@ function MarketAccordion({ title, children, defaultOpen = true }: { title: strin
       </button>
       {open ? <div className="border-t border-[#1E293B] p-3">{children}</div> : null}
     </div>
-  );
-}
-
-function SportSidebar() {
-  const pathname = usePathname();
-
-  return (
-    <aside className="w-[240px] shrink-0 border-r border-[#1E293B] bg-[#111827]">
-      <div className="flex h-16 items-center gap-2 border-b border-[#1E293B] px-6">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="text-[#00C37B]">
-          <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
-        </svg>
-        <span className="text-[20px] font-extrabold tracking-tight text-white">BET<span className="text-[#00C37B]">ARENA</span></span>
-      </div>
-      <nav className="space-y-1 p-3">
-        {MEMBER_NAV_LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`block rounded-md px-3 py-2.5 text-sm transition-colors ${
-              pathname === l.href
-                ? 'bg-[#1A2235] text-white'
-                : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
-            }`}
-          >
-            {l.label}
-          </Link>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-function TopHeader() {
-  const pathname = usePathname();
-
-  return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#1E293B] bg-[#111827]/80 px-6 backdrop-blur">
-      <nav className="flex gap-1">
-        {MEMBER_NAV_LINKS.map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`rounded px-4 py-2 text-sm font-medium transition-colors ${
-              pathname === t.href
-                ? 'bg-[#1A2235] text-white'
-                : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-      <div className="flex items-center gap-4">
-        <div className="rounded-full border border-[#1E293B] bg-[#0B0E1A] px-3 py-1.5 font-mono text-[13px] font-bold text-[#00C37B]">$2,450.50</div>
-        <div className="h-9 w-9 rounded-full border-2 border-[#1A2235] bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6]" />
-      </div>
-    </header>
   );
 }
 
