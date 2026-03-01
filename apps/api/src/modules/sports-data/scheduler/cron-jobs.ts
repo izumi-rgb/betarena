@@ -5,8 +5,9 @@ import { getIO } from '../../../socket';
 import { getDailyCount } from '../cache/redis-strategy';
 import * as apiFootball from '../providers/api-football';
 import * as espn from '../providers/espn-hidden';
+import * as cricketData from '../providers/cricket-data';
 import * as oddspapi from '../providers/oddspapi';
-import { normalizeApiFootball, normalizeESPN, normalizeOddsMarkets } from '../normalizer/normalizer';
+import { normalizeApiFootball, normalizeESPN, normalizeCricket, normalizeOddsMarkets } from '../normalizer/normalizer';
 
 // ---------------------------------------------------------------------------
 // Watcher helpers
@@ -75,6 +76,22 @@ async function refreshLiveScores(): Promise<void> {
   } catch (err) {
     logger.error('ESPN refresh failed', { error: (err as Error).message });
   }
+
+  // Cricket — budget-guarded (100 req/day soft-cap at 90)
+  try {
+    const cricketMatches = await cricketData.getCurrentMatches();
+    const io = getIO();
+    if (Array.isArray(cricketMatches)) {
+      for (const raw of cricketMatches) {
+        const event = normalizeCricket(raw);
+        if (event && watched.includes(event.id)) {
+          io.to(`event:${event.id}`).emit('live:update', event);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error('Cricket live scores refresh failed', { error: (err as Error).message });
+  }
 }
 
 /**
@@ -107,8 +124,9 @@ async function refreshPreMatchOdds(): Promise<void> {
     if (Array.isArray(sports)) {
       for (const sport of sports.slice(0, 5)) {
         const s = sport as Record<string, unknown>;
-        if (s.key) {
-          await oddspapi.getPreMatchOdds(String(s.key));
+        const id = s.sportId || s.key;
+        if (id) {
+          await oddspapi.getPreMatchOdds(String(id));
         }
       }
     }
@@ -118,13 +136,42 @@ async function refreshPreMatchOdds(): Promise<void> {
 }
 
 /**
- * Refreshes today's football fixtures into cache.
+ * Refreshes today's fixtures from all available sports providers into cache:
+ *  - API-Football (football)
+ *  - ESPN scoreboards (NBA, NFL, NHL, MLB, EPL, UCL)
+ *  - CricketData (current cricket matches)
  */
 async function refreshFixtures(): Promise<void> {
+  // API-Football fixtures
   try {
-    await apiFootball.getTodayFixtures();
+    const footballFixtures = await apiFootball.getTodayFixtures();
+    const footballCount = Array.isArray(footballFixtures) ? footballFixtures.length : 0;
+    logger.info('Fixtures refresh: football', { count: footballCount });
   } catch (err) {
-    logger.error('Fixtures refresh failed', { error: (err as Error).message });
+    logger.error('Fixtures refresh failed (football)', { error: (err as Error).message });
+  }
+
+  // ESPN scoreboards — covers NBA, NFL, NHL, MLB, EPL, UCL
+  try {
+    const espnData = await espn.getAllUSScoreboards();
+    let espnEventCount = 0;
+    for (const data of Object.values(espnData)) {
+      if (!data || typeof data !== 'object') continue;
+      const events = (data as Record<string, unknown>).events as unknown[] | undefined;
+      if (Array.isArray(events)) espnEventCount += events.length;
+    }
+    logger.info('Fixtures refresh: ESPN scoreboards', { count: espnEventCount });
+  } catch (err) {
+    logger.error('Fixtures refresh failed (ESPN)', { error: (err as Error).message });
+  }
+
+  // Cricket — budget-guarded (100 req/day soft-cap at 90)
+  try {
+    const cricketFixtures = await cricketData.getCurrentMatches();
+    const cricketCount = Array.isArray(cricketFixtures) ? cricketFixtures.length : 0;
+    logger.info('Fixtures refresh: cricket', { count: cricketCount });
+  } catch (err) {
+    logger.error('Fixtures refresh failed (cricket)', { error: (err as Error).message });
   }
 }
 
