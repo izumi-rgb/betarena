@@ -13,8 +13,12 @@ import { AppShell } from '@/components/app/AppShell';
 // Listing pages (/sports/cricket, not /sports/cricket/some-id) still get AppShell.
 const SPORTS_WITH_INLINE_CHROME = ['basketball', 'tennis', 'esports', 'golf', 'cricket'];
 
+// Top-level pages that have been migrated from variant bundles to real React components
+const MIGRATED_TOP_LEVEL = ['/results'];
+
 function needsAppShell(pathname: string | null): boolean {
   if (!pathname) return false;
+  if (MIGRATED_TOP_LEVEL.includes(pathname)) return true;
   if (!pathname.startsWith('/sports/')) return false;
   if (pathname === '/sports') return false;
   // /sports/basketball/someId → has inline chrome → skip AppShell
