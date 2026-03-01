@@ -215,8 +215,8 @@ function MatchCard({ event, onPick, picks, eventId }: { event: EsportsEvent; onP
             <div className="font-mono text-[28px] font-bold text-white">
               {event.mapScore?.home ?? 1} — {event.mapScore?.away ?? 0}
             </div>
-            <div className="mt-1 text-xs text-[#94A3B8]">{event.currentMap ?? 'Map 2: Mirage'}</div>
-            <div className="mt-1 text-xs font-mono text-[#64748B]">{event.roundCounter ?? 'Round 14 of 30'}</div>
+            {event.currentMap && <div className="mt-1 text-xs text-[#94A3B8]">{event.currentMap}</div>}
+            {event.roundCounter && <div className="mt-1 text-xs font-mono text-[#64748B]">{event.roundCounter}</div>}
           </div>
 
           <div>
@@ -329,23 +329,6 @@ export default function EsportsMatchPage() {
   const toggleSharedPick = useBetSlipStore((s) => s.togglePick);
   const removeSharedPick = useBetSlipStore((s) => s.removePick);
 
-  const buildFallbackEvent = useCallback(
-    (id: string): EsportsEvent => ({
-      id: id || 'demo',
-      league: 'ESL Pro League',
-      startTime: new Date().toISOString(),
-      status: 'live',
-      homeTeam: { name: 'FaZe Clan', abbr: 'FAZ' },
-      awayTeam: { name: 'NAVI', abbr: 'NAV' },
-      mapScore: { home: 1, away: 0 },
-      currentMap: 'Map 2: Mirage',
-      roundCounter: 'Round 14 of 30',
-      gameTag: 'CS2',
-      markets: [],
-    }),
-    [],
-  );
-
   const loadEvent = useCallback(async () => {
     if (!eventId) return;
     setError(null);
@@ -353,7 +336,7 @@ export default function EsportsMatchPage() {
     try {
       const res = await apiGet<EventMarketsResponse | EsportsEvent>(`/api/sports/events/${eventId}/markets`);
       if (!res.success || !res.data) {
-        setEvent(buildFallbackEvent(eventId));
+        setError('No esports event data available');
         return;
       }
 
@@ -364,14 +347,8 @@ export default function EsportsMatchPage() {
         ...(prev ?? {}),
         ...normalized,
         id: String(normalized.id ?? eventId),
-        league: normalized.league || 'ESL Pro League',
-        status: normalized.status || 'live',
-        mapScore: normalized.mapScore ?? { home: 1, away: 0 },
-        currentMap: normalized.currentMap ?? 'Map 2: Mirage',
-        roundCounter: normalized.roundCounter ?? 'Round 14 of 30',
-        gameTag: normalized.gameTag ?? 'CS2',
-        homeTeam: normalized.homeTeam ?? { name: 'FaZe Clan', abbr: 'FAZ' },
-        awayTeam: normalized.awayTeam ?? { name: 'NAVI', abbr: 'NAV' },
+        league: normalized.league || 'Esports',
+        status: normalized.status || 'upcoming',
         markets: normalized.markets ?? [],
       } as EsportsEvent));
     } catch {
@@ -388,12 +365,11 @@ export default function EsportsMatchPage() {
       } catch {
         // Ignore fallback error.
       }
-      setEvent(buildFallbackEvent(eventId));
-      setError('Using demo esports data');
+      setError('No live esports events right now. Check back later.');
     } finally {
       setLoading(false);
     }
-  }, [buildFallbackEvent, eventId, router]);
+  }, [eventId, router]);
 
   useEffect(() => {
     loadEvent();
@@ -453,8 +429,12 @@ export default function EsportsMatchPage() {
 
   if (!event) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0B0E1A] px-6 text-center text-[#EF4444]">
-        {error ?? 'Esports event not found'}
+      <div className="flex h-screen items-center justify-center bg-[#0B0E1A] px-6 text-center">
+        <div className="max-w-sm">
+          <div className="mb-3 text-3xl">🎮</div>
+          <div className="font-semibold text-white">No live esports events right now</div>
+          <div className="mt-2 text-sm text-[#94A3B8]">Check back later for live matches and betting markets.</div>
+        </div>
       </div>
     );
   }
@@ -467,7 +447,6 @@ export default function EsportsMatchPage() {
         <TopHeader />
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6">
-            {error ? <div className="mb-3 text-xs text-[#94A3B8]">{error}</div> : null}
             <MatchCard event={event} onPick={handlePick} picks={picks} eventId={Number(eventId)} />
           </div>
           <BetSlip picks={picks} onRemove={(id) => {

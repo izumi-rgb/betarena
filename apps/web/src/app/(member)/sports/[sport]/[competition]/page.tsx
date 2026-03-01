@@ -54,46 +54,9 @@ function daySectionLabel(dateString: string) {
   return target.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-const FALLBACK_DATA: CompetitionPageData = {
-  competitionName: 'Premier League',
-  countryFlag: '🏴',
-  outright: [
-    { id: 'o1', name: 'Arsenal', odds: 2.8 },
-    { id: 'o2', name: 'Man City', odds: 2.95 },
-    { id: 'o3', name: 'Liverpool', odds: 3.25 },
-    { id: 'o4', name: 'Chelsea', odds: 7.5 },
-    { id: 'o5', name: 'Tottenham', odds: 12.0 },
-    { id: 'o6', name: 'Newcastle', odds: 14.0 },
-  ],
-  fixtures: [
-    {
-      id: 'f1',
-      homeTeam: 'Arsenal',
-      awayTeam: 'Chelsea',
-      startTime: new Date().toISOString(),
-      status: 'live',
-      odds: [1.75, 3.65, 4.3],
-      marketsCount: 142,
-    },
-    {
-      id: 'f2',
-      homeTeam: 'Man City',
-      awayTeam: 'Liverpool',
-      startTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      status: 'scheduled',
-      odds: [2.05, 3.4, 3.7],
-      marketsCount: 128,
-    },
-    {
-      id: 'f3',
-      homeTeam: 'Tottenham',
-      awayTeam: 'Aston Villa',
-      startTime: new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString(),
-      status: 'scheduled',
-      odds: [2.4, 3.3, 2.9],
-      marketsCount: 115,
-    },
-  ],
+const EMPTY_DATA: CompetitionPageData = {
+  competitionName: '',
+  fixtures: [],
 };
 
 export default function CompetitionLeaguePage() {
@@ -101,13 +64,11 @@ export default function CompetitionLeaguePage() {
   const sport = params?.sport || 'football';
   const competition = params?.competition || 'premier-league';
 
-  const [data, setData] = useState<CompetitionPageData>(FALLBACK_DATA);
+  const [data, setData] = useState<CompetitionPageData>(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const loadCompetition = useCallback(async () => {
     setLoading(true);
-    setError(null);
 
     try {
       const url = `/api/sports/${sport}/competitions/${competition}/events?ts=${Date.now()}`;
@@ -117,18 +78,17 @@ export default function CompetitionLeaguePage() {
 
       if (res.success && res.data) {
         setData({
-          competitionName: res.data.competitionName || FALLBACK_DATA.competitionName,
-          countryFlag: res.data.countryFlag || FALLBACK_DATA.countryFlag,
+          competitionName: res.data.competitionName || competition.replace(/-/g, ' '),
+          countryFlag: res.data.countryFlag,
           logoUrl: res.data.logoUrl,
-          outright: (res.data.outright && res.data.outright.length ? res.data.outright : FALLBACK_DATA.outright) || [],
-          fixtures: (res.data.fixtures && res.data.fixtures.length ? res.data.fixtures : FALLBACK_DATA.fixtures) || [],
+          outright: res.data.outright || [],
+          fixtures: res.data.fixtures || [],
         });
       } else {
-        setData(FALLBACK_DATA);
+        setData(EMPTY_DATA);
       }
     } catch {
-      setData(FALLBACK_DATA);
-      setError('Using demo competition data');
+      setData(EMPTY_DATA);
     } finally {
       setLoading(false);
     }
@@ -237,7 +197,6 @@ export default function CompetitionLeaguePage() {
               )}
             </section>
 
-            {error ? <p className="mt-3 text-xs text-[#94A3B8]">{error}</p> : null}
           </div>
         </div>
       </main>
