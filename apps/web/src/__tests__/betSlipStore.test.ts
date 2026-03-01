@@ -23,7 +23,7 @@ const mockPick2: BetSlipPick = {
 describe('betSlipStore', () => {
   beforeEach(() => {
     // Reset store state between tests
-    useBetSlipStore.setState({ picks: [], isOpenMobile: false });
+    useBetSlipStore.setState({ picks: [], stake: '10', isOpenMobile: false });
   });
 
   it('starts with empty picks', () => {
@@ -76,5 +76,54 @@ describe('betSlipStore', () => {
     expect(useBetSlipStore.getState().isOpenMobile).toBe(true);
     useBetSlipStore.getState().closeMobile();
     expect(useBetSlipStore.getState().isOpenMobile).toBe(false);
+  });
+
+  describe('stake management', () => {
+    it('starts with stake of 10', () => {
+      expect(useBetSlipStore.getState().stake).toBe('10');
+    });
+
+    it('setStake updates stake value', () => {
+      useBetSlipStore.getState().setStake('25');
+      expect(useBetSlipStore.getState().stake).toBe('25');
+    });
+
+    it('clearPicks resets stake to 0', () => {
+      useBetSlipStore.getState().setStake('50');
+      useBetSlipStore.getState().togglePick(mockPick);
+      useBetSlipStore.getState().clearPicks();
+      expect(useBetSlipStore.getState().stake).toBe('0');
+      expect(useBetSlipStore.getState().picks).toHaveLength(0);
+    });
+
+    it('removePick resets stake to 0 when last pick removed', () => {
+      useBetSlipStore.getState().setStake('30');
+      useBetSlipStore.getState().togglePick(mockPick);
+      useBetSlipStore.getState().removePick('test-1');
+      expect(useBetSlipStore.getState().stake).toBe('0');
+    });
+
+    it('removePick preserves stake when picks remain', () => {
+      useBetSlipStore.getState().setStake('30');
+      useBetSlipStore.getState().togglePick(mockPick);
+      useBetSlipStore.getState().togglePick(mockPick2);
+      useBetSlipStore.getState().removePick('test-1');
+      expect(useBetSlipStore.getState().stake).toBe('30');
+      expect(useBetSlipStore.getState().picks).toHaveLength(1);
+    });
+
+    it('togglePick resets stake when deselecting last pick', () => {
+      useBetSlipStore.getState().setStake('15');
+      useBetSlipStore.getState().togglePick(mockPick);
+      useBetSlipStore.getState().togglePick(mockPick); // deselect
+      expect(useBetSlipStore.getState().stake).toBe('0');
+    });
+
+    it('stake persists while picks remain', () => {
+      useBetSlipStore.getState().togglePick(mockPick);
+      useBetSlipStore.getState().setStake('42');
+      expect(useBetSlipStore.getState().stake).toBe('42');
+      expect(useBetSlipStore.getState().picks).toHaveLength(1);
+    });
   });
 });
