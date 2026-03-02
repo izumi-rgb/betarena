@@ -14,7 +14,8 @@
     "build:web": "npm run build --workspace=apps/web",
     "build": "npm run build:api && npm run build:web",
     "migrate": "npm run migrate --workspace=apps/api",
-    "seed": "npm run seed --workspace=apps/api"
+    "seed": "npm run seed --workspace=apps/api",
+    "start": "node apps/api/dist/index.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
