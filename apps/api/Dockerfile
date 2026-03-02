@@ -27,6 +27,12 @@ COPY tsconfig.base.json ./
 # Build the API
 RUN npm run build --workspace=apps/api
 
+# Compile migration .ts files to .js for production use
+RUN cd apps/api && npx tsc --outDir migrations-compiled \
+    --module commonjs --target ES2022 --esModuleInterop \
+    --skipLibCheck --declaration false \
+    migrations/*.ts
+
 # ============================================
 # Stage 2: Production
 # ============================================
@@ -57,6 +63,9 @@ COPY packages/shared/src/ packages/shared/src/
 # Copy built API output from build stage
 COPY --from=build /app/apps/api/dist apps/api/dist
 
+# Copy compiled JS migrations for production
+COPY --from=build /app/apps/api/migrations-compiled/migrations/ apps/api/migrations/
+
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 expressjs
@@ -66,6 +75,6 @@ EXPOSE 4000
 
 # Health check: hit a lightweight endpoint every 30s
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
 
 CMD ["dumb-init", "node", "apps/api/dist/index.js"]
