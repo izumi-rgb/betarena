@@ -22,10 +22,8 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy installed dependencies from deps stage
+# Copy installed dependencies from deps stage (all hoisted to root node_modules)
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 
 # Copy root workspace files
 COPY package.json package-lock.json tsconfig.base.json ./
@@ -36,9 +34,13 @@ COPY packages/shared/ packages/shared/
 # Copy web app source
 COPY apps/web/ apps/web/
 
+# Copy variant-exports (referenced by @variant-exports/* alias in tsconfig)
+COPY variant-exports/ variant-exports/
+
 # Set production environment for optimized build
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV STANDALONE_BUILD=1
 
 # Build the Next.js app (standalone output)
 RUN npm run build --workspace=apps/web
