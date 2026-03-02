@@ -97,7 +97,7 @@ const Sidebar = () => (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
           <circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
         </svg>
-        <span className="font-medium text-[14px]">Sports</span>
+        <span className="font-medium text-[14px]">Home</span>
       </a>
       <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-md border-l-[3px] transition-colors relative" style={{ background: customStyles.surface, color: 'white', borderColor: customStyles.accent }}>
         <div className="absolute inset-0 rounded-md pointer-events-none" style={{ background: customStyles.accent, opacity: 0.05 }} />
@@ -109,6 +109,12 @@ const Sidebar = () => (
       </a>
       <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group" style={{ color: customStyles.textSecondary }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+        </svg>
+        <span className="font-medium text-[14px]">Results</span>
+      </a>
+      <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group" style={{ color: customStyles.textSecondary }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
         </svg>
         <span className="font-medium text-[14px]">Cricket</span>
@@ -116,15 +122,15 @@ const Sidebar = () => (
       </a>
       <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group" style={{ color: customStyles.textSecondary }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
-          <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-        </svg>
-        <span className="font-medium text-[14px]">Live Stream</span>
-      </a>
-      <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group" style={{ color: customStyles.textSecondary }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
         </svg>
         <span className="font-medium text-[14px]">My Bets</span>
+      </a>
+      <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group" style={{ color: customStyles.textSecondary }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
+          <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z" />
+        </svg>
+        <span className="font-medium text-[14px]">Account</span>
       </a>
     </nav>
     <div className="p-4" style={{ borderTop: `1px solid ${customStyles.border}` }}>
@@ -132,7 +138,7 @@ const Sidebar = () => (
         <div className="w-9 h-9 rounded-full" style={{ background: 'linear-gradient(to bottom right, #6366F1, #A855F7)', border: `1px solid ${customStyles.border}` }} />
         <div className="flex flex-col">
           <span className="text-white text-[13px] font-bold">AlexP</span>
-          <span className="text-[11px] font-mono" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>$1,240.00</span>
+          <span className="text-[11px] font-mono" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>1,240.00 CR</span>
         </div>
       </div>
     </div>
@@ -200,7 +206,7 @@ const BetSlip = () => {
           </div>
           <div className="rounded p-2 mb-3 transition-colors" style={{ background: customStyles.bgPrimary, border: `1px solid ${customStyles.border}` }}>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px]" style={{ color: customStyles.textTertiary }}>Stake ($)</span>
+              <span className="text-[11px]" style={{ color: customStyles.textTertiary }}>Stake (CR)</span>
             </div>
             <input
               type="text"
@@ -212,18 +218,18 @@ const BetSlip = () => {
           </div>
           <div className="flex justify-between items-center pt-3" style={{ borderTop: `1px solid ${customStyles.border}` }}>
             <span className="text-[13px] text-white">To Return:</span>
-            <span className="font-mono font-bold text-[16px]" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>${toReturn}</span>
+            <span className="font-mono font-bold text-[16px]" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>{toReturn} CR</span>
           </div>
         </div>
       </div>
       <div className="p-4" style={{ background: customStyles.bgSecondary, borderTop: `1px solid ${customStyles.border}` }}>
         <div className="flex justify-between items-center mb-4 text-[13px]">
           <span style={{ color: customStyles.textSecondary }}>Total Stake:</span>
-          <span className="text-white font-mono font-bold" style={{ fontFamily: "'Roboto Mono', monospace" }}>${parseFloat(stakeValue || 0).toFixed(2)}</span>
+          <span className="text-white font-mono font-bold" style={{ fontFamily: "'Roboto Mono', monospace" }}>{parseFloat(stakeValue || 0).toFixed(2)} CR</span>
         </div>
         <div className="flex justify-between items-center mb-4 text-[13px]">
           <span style={{ color: customStyles.textSecondary }}>Est. Returns:</span>
-          <span className="font-mono font-bold" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>${toReturn}</span>
+          <span className="font-mono font-bold" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>{toReturn} CR</span>
         </div>
         <button
           onClick={handlePlaceBet}

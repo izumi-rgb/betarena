@@ -1,7 +1,5 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import AdminOverviewScreen from '@variant-exports/variant_admin_dashboard';
-
-export default function Page() {
-  return <AdminOverviewScreen />;
+export default function AdminPage() {
+  redirect('/admin/overview');
 }

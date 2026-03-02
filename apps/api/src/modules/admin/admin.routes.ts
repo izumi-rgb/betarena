@@ -132,24 +132,36 @@ router.post('/credits/create', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/credits/ledger', async (_req: Request, res: Response) => {
+router.get('/credits/ledger', async (req: Request, res: Response) => {
   try {
-    const ledger = await db('credit_transactions as ct')
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 15));
+    const offset = (page - 1) * limit;
+
+    const baseQuery = db('credit_transactions as ct')
       .leftJoin('users as fu', 'ct.from_user_id', 'fu.id')
-      .leftJoin('users as tu', 'ct.to_user_id', 'tu.id')
+      .leftJoin('users as tu', 'ct.to_user_id', 'tu.id');
+
+    const [countResult] = await db('credit_transactions').count('id as total');
+    const total = Number(countResult?.total) || 0;
+
+    const transactions = await baseQuery
+      .clone()
       .select(
         'ct.id',
-        'ct.created_at as timestamp',
-        db.raw(`COALESCE(fu.display_id, 'Admin') as "from"`),
-        db.raw(`COALESCE(tu.display_id, 'Admin') as "to"`),
+        'ct.created_at',
+        db.raw(`COALESCE(fu.display_id, 'Admin') as from_display_id`),
+        db.raw(`COALESCE(fu.username, 'Admin') as from_user`),
+        db.raw(`COALESCE(tu.display_id, 'Admin') as to_display_id`),
+        db.raw(`COALESCE(tu.username, 'Admin') as to_user`),
         'ct.amount',
-        'ct.type',
-        db.raw('0 as "balanceAfter"')
+        'ct.type'
       )
       .orderBy('ct.created_at', 'desc')
-      .limit(500);
+      .limit(limit)
+      .offset(offset);
 
-    res.json({ success: true, data: ledger, message: 'Ledger retrieved', error: null });
+    res.json({ success: true, data: { transactions, total }, message: 'Ledger retrieved', error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, message: 'Failed to retrieve ledger', error: (err as Error).message });
   }

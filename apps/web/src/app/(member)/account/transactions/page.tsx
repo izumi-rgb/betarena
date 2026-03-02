@@ -4,16 +4,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { apiGet } from '@/lib/api';
+import { BalanceBadge } from '@/components/app/BalanceBadge';
 
 type TxType = 'all' | 'received' | 'bet_placed' | 'won' | 'lost' | 'void' | 'cash_out';
 
 type TxRow = {
-  id: string;
+  id: number | string;
   createdAt: string;
   type: TxType;
   description: string;
   amount: number;
-  balance: number;
 };
 
 const NAV = [
@@ -45,14 +45,27 @@ const TYPE_ICON: Record<TxType, string> = {
   cash_out: '💵',
 };
 
-const FALLBACK: TxRow[] = [
-  { id: 't1', createdAt: new Date().toISOString(), type: 'received', description: 'Received from Agent_20', amount: 500, balance: 950 },
-  { id: 't2', createdAt: new Date().toISOString(), type: 'bet_placed', description: 'Accumulator · 3 selections', amount: -10, balance: 940 },
-  { id: 't3', createdAt: new Date().toISOString(), type: 'won', description: 'Arsenal to Win · Match Result', amount: 48.75, balance: 988.75 },
-  { id: 't4', createdAt: new Date().toISOString(), type: 'lost', description: 'Draw · Man Utd vs Liverpool', amount: 0, balance: 988.75 },
-  { id: 't5', createdAt: new Date().toISOString(), type: 'void', description: 'Match abandoned', amount: 10, balance: 998.75 },
-  { id: 't6', createdAt: new Date().toISOString(), type: 'cash_out', description: 'Partial cashout · Arsenal acca', amount: 13.5, balance: 1012.25 },
-];
+type TransactionsApiResponse = {
+  transactions: Array<{
+    id: number;
+    amount: number | string;
+    created_at: string;
+    type: string;
+    note?: string;
+  }>;
+};
+
+function parseAmount(value: number | string): number {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mapApiType(rawType: string): TxType {
+  if (rawType === 'transfer') return 'received';
+  if (rawType === 'create') return 'received';
+  if (rawType === 'deduct') return 'bet_placed';
+  return 'all';
+}
 
 function TopHeader() {
   const pathname = usePathname();
@@ -65,7 +78,7 @@ function TopHeader() {
           </Link>
         ))}
       </nav>
-      <div className="rounded-full border border-[#1E293B] bg-[#0B0E1A] px-3 py-1.5 font-mono text-[#00C37B]">$2,450.50</div>
+      <BalanceBadge className="rounded-full border border-[#1E293B] bg-[#0B0E1A] px-3 py-1.5 font-mono text-[#00C37B]" />
     </header>
   );
 }
@@ -79,14 +92,34 @@ export default function TransactionsPage() {
 
   const load = useCallback(async () => {
     try {
-      const qs = new URLSearchParams({ type: type === 'all' ? '' : type, from, to, ts: String(Date.now()) });
-      const res = await apiGet<TxRow[]>(`/api/credits/transactions?${qs.toString()}`, {
+      const qs = new URLSearchParams({ page: '1', limit: '200', ts: String(Date.now()) });
+      const res = await apiGet<TransactionsApiResponse>(`/api/credits/transactions?${qs.toString()}`, {
         headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       });
-      const data = (res.data || []).map((r, i) => ({ ...r, id: String(r.id || `tx-${i}`) }));
-      setRows(data.length ? data : FALLBACK.filter((f) => type === 'all' || f.type === type));
+      const allRows = (res.data?.transactions || []).map((transaction): TxRow => ({
+        id: transaction.id,
+        createdAt: transaction.created_at,
+        type: mapApiType(transaction.type),
+        description: transaction.note || transaction.type,
+        amount: parseAmount(transaction.amount),
+      }));
+
+      const fromDate = from ? new Date(from) : null;
+      const toDate = to ? new Date(to) : null;
+      if (toDate) {
+        toDate.setHours(23, 59, 59, 999);
+      }
+
+      const data = allRows.filter((row) => {
+        if (type !== 'all' && row.type !== type) return false;
+        const rowDate = new Date(row.createdAt);
+        if (fromDate && rowDate < fromDate) return false;
+        if (toDate && rowDate > toDate) return false;
+        return true;
+      });
+      setRows(data);
     } catch {
-      setRows(FALLBACK.filter((f) => type === 'all' || f.type === type));
+      setRows([]);
     }
   }, [from, to, type]);
 
@@ -96,6 +129,27 @@ export default function TransactionsPage() {
 
   const paged = useMemo(() => rows.slice((page - 1) * 20, page * 20), [rows, page]);
   const totalPages = Math.max(1, Math.ceil(rows.length / 20));
+
+  const exportCsv = () => {
+    const headers = ['DateTime', 'Type', 'Description', 'Amount'];
+    const lines = rows.map((row) => [
+      new Date(row.createdAt).toISOString(),
+      TYPE_LABELS[row.type],
+      `"${(row.description || '').replace(/"/g, '""')}"`,
+      row.amount.toFixed(2),
+    ].join(','));
+    const csv = [headers.join(','), ...lines].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-[#0B0E1A] text-white">
@@ -113,20 +167,22 @@ export default function TransactionsPage() {
           </div>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-[#1E293B] bg-[#0B0E1A] px-3 py-2" />
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-[#1E293B] bg-[#0B0E1A] px-3 py-2" />
-          <button className="rounded border border-[#00C37B] px-4 py-2 text-[#00C37B]">📥 Export CSV</button>
+          <button onClick={exportCsv} className="rounded border border-[#00C37B] px-4 py-2 text-[#00C37B]">📥 Export CSV</button>
         </section>
 
         <section className="mt-4 overflow-hidden rounded-xl border border-[#1E293B] bg-[#1A2235]">
-          <div className="grid grid-cols-[180px_120px_1fr_140px_140px] border-b border-[#1E293B] px-4 py-3 text-xs uppercase text-[#64748B]">
-            <div>Date/Time</div><div>Type</div><div>Description</div><div>Amount</div><div>Balance</div>
+          <div className="grid grid-cols-[180px_120px_1fr_140px] border-b border-[#1E293B] px-4 py-3 text-xs uppercase text-[#64748B]">
+            <div>Date/Time</div><div>Type</div><div>Description</div><div>Amount</div>
           </div>
+          {paged.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-[#94A3B8]">No transactions found.</div>
+          ) : null}
           {paged.map((r) => (
-            <div key={r.id} className="grid grid-cols-[180px_120px_1fr_140px_140px] border-b border-[#1E293B] px-4 py-3 text-sm">
+            <div key={r.id} className="grid grid-cols-[180px_120px_1fr_140px] border-b border-[#1E293B] px-4 py-3 text-sm">
               <div className="text-[#94A3B8]">{new Date(r.createdAt).toLocaleString()}</div>
               <div>{TYPE_ICON[r.type]} {TYPE_LABELS[r.type]}</div>
               <div className="text-white">{r.description}</div>
               <div className={r.amount >= 0 ? 'font-mono text-[#00C37B]' : 'font-mono text-[#EF4444]'}>{r.amount >= 0 ? '+' : ''}{r.amount.toFixed(2)} CR</div>
-              <div className="font-mono text-[#94A3B8]">{r.balance.toFixed(2)} CR</div>
             </div>
           ))}
         </section>

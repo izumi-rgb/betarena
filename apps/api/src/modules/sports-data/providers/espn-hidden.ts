@@ -20,7 +20,7 @@ const SPORT_PATHS: Record<string, string> = {
   nhl: '/hockey/nhl/scoreboard',
   mlb: '/baseball/mlb/scoreboard',
   epl: '/soccer/eng.1/scoreboard',
-  ucl: '/soccer/uefa.champions_league/scoreboard',
+  ucl: '/soccer/uefa.champions/scoreboard',
 };
 
 async function fetchScoreboard(path: string): Promise<unknown> {

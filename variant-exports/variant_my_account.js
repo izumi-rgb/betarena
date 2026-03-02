@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { useCredits } from '@/contexts/CreditsContext';
 
 const customStyles = {
   cardGlowGreen: {
@@ -38,7 +39,7 @@ const customStyles = {
   },
 };
 
-const Sidebar = () => {
+const Sidebar = ({ balance }) => {
   const { pathname } = useLocation();
   return (
     <aside className="w-[240px] bg-[#111827] border-r border-[#1E293B] flex flex-col shrink-0 z-20">
@@ -66,14 +67,6 @@ const Sidebar = () => {
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
           </svg>
           <span className="font-medium text-[14px]">In-Play</span>
-        </Link>
-
-        <Link to="/live" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/live' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
-            <polygon points="23 7 16 12 23 17 23 7" />
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-          </svg>
-          <span className="font-medium text-[14px]">Live Stream</span>
         </Link>
 
         <Link to="/my-bets" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/my-bets' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
@@ -111,7 +104,7 @@ const Sidebar = () => {
           <div className="w-9 h-9 rounded-full bg-[#00C37B] border border-[#1E293B] flex items-center justify-center text-[#0B0E1A] font-bold text-sm">JK</div>
           <div className="flex flex-col">
             <span className="text-white text-[13px] font-bold">John K.</span>
-            <span className="text-[#00C37B] text-[11px] font-mono">450.00 CR</span>
+            <span className="text-[#00C37B] text-[11px] font-mono">{balance !== undefined ? `${balance.toFixed(2)} CR` : '...'}</span>
           </div>
         </div>
       </div>
@@ -119,8 +112,9 @@ const Sidebar = () => {
   );
 };
 
-const CreditBalanceCard = () => {
+const CreditBalanceCard = ({ balance = 0, isLoading = false }) => {
   const [hovered, setHovered] = useState(false);
+  const fmt = (v) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
   return (
     <div
       className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-6 transition-all relative overflow-hidden group"
@@ -141,32 +135,14 @@ const CreditBalanceCard = () => {
 
       <div className="mb-4">
         <div className="font-mono text-[32px] font-bold text-[#00C37B] leading-none mb-2">
-          450.00 <span className="text-[16px] text-[#00C37B] opacity-60">CR</span>
-        </div>
-      </div>
-
-      <div className="mb-5">
-        <div className="flex justify-between text-[11px] mb-1.5">
-          <span className="text-[#94A3B8]">Allocation Used</span>
-          <span className="text-white font-bold">91%</span>
-        </div>
-        <div style={customStyles.progressBar}>
-          <div style={{ ...customStyles.progressValue, width: '91%' }}></div>
+          {isLoading ? '...' : fmt(balance)} <span className="text-[16px] text-[#00C37B] opacity-60">CR</span>
         </div>
       </div>
 
       <div className="space-y-2 pt-4 border-t border-[#1E293B]">
         <div className="flex justify-between items-center text-[13px]">
-          <span className="text-[#94A3B8]">In Open Bets</span>
-          <span className="text-[#F59E0B] font-mono font-bold">50.00 CR</span>
-        </div>
-        <div className="flex justify-between items-center text-[13px]">
           <span className="text-[#94A3B8]">Available Now</span>
-          <span className="text-[#00C37B] font-mono font-bold">400.00 CR</span>
-        </div>
-        <div className="flex justify-between items-center text-[13px]">
-          <span className="text-[#64748B]">Total Received</span>
-          <span className="text-[#64748B] font-mono">5,000.00 CR</span>
+          <span className="text-[#00C37B] font-mono font-bold">{isLoading ? '...' : `${fmt(balance)} CR`}</span>
         </div>
       </div>
     </div>
@@ -287,11 +263,11 @@ const PLCard = () => {
   );
 };
 
-const ActionTile = ({ icon, title, subtitle }) => {
+const ActionTile = ({ icon, title, subtitle, href = '#' }) => {
   const [hovered, setHovered] = useState(false);
   return (
-    <a
-      href="#"
+    <Link
+      to={href}
       className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4 flex items-center gap-4 group"
       style={
         hovered
@@ -308,7 +284,7 @@ const ActionTile = ({ icon, title, subtitle }) => {
         <span className="text-white font-bold text-[14px]">{title}</span>
         <span className="text-[#64748B] text-[12px]">{subtitle}</span>
       </div>
-    </a>
+    </Link>
   );
 };
 
@@ -337,12 +313,24 @@ const TransactionRow = ({ iconBg, iconColor, icon, title, subtitle, amount, amou
 };
 
 const MyAccountPage = () => {
+  const { balance, isLoading: balanceLoading, formatBalance, fetchTransactions, isAuthenticated } = useCredits();
+  const [transactions, setTransactions] = useState([]);
+  const [txLoading, setTxLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthenticated) { setTxLoading(false); return; }
+    let cancelled = false;
+    fetchTransactions(1, 5).then(data => {
+      if (!cancelled) { setTransactions(data.transactions || []); setTxLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [fetchTransactions, isAuthenticated]);
+
   const navTabsWithHref = [
-    { label: 'Sports', href: '/sports' },
+    { label: 'Home', href: '/sports' },
     { label: 'In-Play', href: '/in-play' },
-    { label: 'Live Stream', href: '/live' },
-    { label: 'My Bets', href: '/my-bets' },
     { label: 'Results', href: '/results' },
+    { label: 'My Bets', href: '/my-bets' },
     { label: 'Account', href: '/account' },
   ];
   const { pathname } = useLocation();
@@ -385,7 +373,7 @@ const MyAccountPage = () => {
             fontWeight: 700,
             color: '#00C37B',
             fontSize: '13px',
-          }}>$2,450.50</div>
+          }}>{balanceLoading ? '...' : formatBalance()}</div>
           <div style={{
             width: '36px',
             height: '36px',
@@ -450,7 +438,7 @@ const MyAccountPage = () => {
 
           {/* Stats Cards */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <CreditBalanceCard />
+            <CreditBalanceCard balance={balance} isLoading={balanceLoading} />
             <TotalBetsCard />
             <PLCard />
           </section>
@@ -469,6 +457,7 @@ const MyAccountPage = () => {
               }
               title="My Bets"
               subtitle="View history"
+              href="/my-bets"
             />
             <ActionTile
               icon={
@@ -479,6 +468,7 @@ const MyAccountPage = () => {
               }
               title="Transactions"
               subtitle="Deposits & Wins"
+              href="/account/transactions"
             />
             <ActionTile
               icon={
@@ -499,6 +489,7 @@ const MyAccountPage = () => {
               }
               title="Settings"
               subtitle="Preferences"
+              href="/account/settings"
             />
             <ActionTile
               icon={
@@ -520,6 +511,7 @@ const MyAccountPage = () => {
               }
               title="Security"
               subtitle="Password & 2FA"
+              href="/account/settings"
             />
           </section>
 
@@ -527,95 +519,42 @@ const MyAccountPage = () => {
           <section className="bg-[#1A2235] border border-[#1E293B] rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-[#1E293B] flex justify-between items-center">
               <h3 className="text-white font-bold text-[16px]">Recent Transactions</h3>
-              <a href="#" className="text-[#00C37B] text-[13px] font-bold hover:underline">View All →</a>
+              <Link to="/account/transactions" className="text-[#00C37B] text-[13px] font-bold hover:underline" style={{ textDecoration: 'none' }}>View All →</Link>
             </div>
 
             <div className="divide-y divide-[#1E293B]">
-              <TransactionRow
-                iconBg="rgba(0,195,123,0.1)"
-                iconColor="#00C37B"
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <polyline points="19 12 12 19 5 12" />
-                  </svg>
-                }
-                title="Received from Agent_20"
-                subtitle="Deposit"
-                amount="+500.00 CR"
-                amountColor="#00C37B"
-                balance="1,450 CR"
-                time="Today 09:00"
-              />
-              <TransactionRow
-                iconBg="rgba(0,195,123,0.1)"
-                iconColor="#00C37B"
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                    <path d="M4 22h16" />
-                    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-                    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-                    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-                  </svg>
-                }
-                title="Bet Won — Arsenal to Win"
-                subtitle="Single Bet"
-                amount="+48.75 CR"
-                amountColor="#00C37B"
-                balance="950 CR"
-                time="Today 08:45"
-              />
-              <TransactionRow
-                iconBg="rgba(239,68,68,0.1)"
-                iconColor="#EF4444"
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <circle cx="12" cy="12" r="6" />
-                    <circle cx="12" cy="12" r="2" />
-                  </svg>
-                }
-                title="Bet Placed — Accumulator"
-                subtitle="Sports Bet"
-                amount="-10.00 CR"
-                amountColor="#EF4444"
-                balance="901.25 CR"
-                time="Yesterday"
-              />
-              <TransactionRow
-                iconBg="rgba(0,195,123,0.1)"
-                iconColor="#00C37B"
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <polyline points="19 12 12 19 5 12" />
-                  </svg>
-                }
-                title="Received from Agent_20"
-                subtitle="Deposit"
-                amount="+200.00 CR"
-                amountColor="#00C37B"
-                balance="911.25 CR"
-                time="2 days ago"
-              />
-              <TransactionRow
-                iconBg="rgba(239,68,68,0.1)"
-                iconColor="#EF4444"
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                }
-                title="Bet Lost — Draw — Man Utd"
-                subtitle="Single Bet"
-                amount="-20.00 CR"
-                amountColor="#EF4444"
-                balance="711.25 CR"
-                time="3 days ago"
-              />
+              {txLoading ? (
+                <div className="px-6 py-8 text-center text-[#64748B] text-[13px]">Loading transactions...</div>
+              ) : transactions.length === 0 ? (
+                <div className="px-6 py-8 text-center text-[#64748B] text-[13px]">No transactions yet</div>
+              ) : (
+                transactions.map((tx) => {
+                  const isCredit = tx.type === 'transfer' || tx.type === 'create';
+                  const isDeduct = tx.type === 'deduct';
+                  const amt = parseFloat(tx.amount) || 0;
+                  const timeStr = new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <TransactionRow
+                      key={tx.id}
+                      iconBg={isDeduct ? 'rgba(239,68,68,0.1)' : 'rgba(0,195,123,0.1)'}
+                      iconColor={isDeduct ? '#EF4444' : '#00C37B'}
+                      icon={
+                        isDeduct ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></svg>
+                        )
+                      }
+                      title={tx.note || (isDeduct ? 'Bet Placed' : 'Credit Received')}
+                      subtitle={tx.type === 'transfer' ? 'Transfer' : tx.type === 'create' ? 'Admin Credit' : tx.type === 'deduct' ? 'Bet Deduction' : tx.type}
+                      amount={`${isDeduct ? '-' : '+'}${amt.toFixed(2)} CR`}
+                      amountColor={isDeduct ? '#EF4444' : '#00C37B'}
+                      balance=""
+                      time={timeStr}
+                    />
+                  );
+                })
+              )}
             </div>
           </section>
 
@@ -626,6 +565,8 @@ const MyAccountPage = () => {
 };
 
 const App = () => {
+  const { balance } = useCredits();
+
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -645,14 +586,10 @@ const App = () => {
   }, []);
 
   return (
-    <Router basename="/">
-      <div className="h-screen flex overflow-hidden" style={{ background: 'radial-gradient(circle at top center, #1a2235 0%, #0B0E1A 60%)', color: '#F1F5F9' }}>
-        <Sidebar />
-        <Routes>
-          <Route path="/" element={<MyAccountPage />} />
-        </Routes>
-      </div>
-    </Router>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'radial-gradient(circle at top center, #1a2235 0%, #0B0E1A 60%)', color: '#F1F5F9' }}>
+      <Sidebar balance={balance} />
+      <MyAccountPage />
+    </div>
   );
 };
 

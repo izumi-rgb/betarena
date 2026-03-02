@@ -272,5 +272,11 @@ export async function changePassword(
   const nextHash = await bcrypt.hash(newPassword, 12);
   await db('users').where({ id: userId }).update({ password_hash: nextHash });
 
+  await writeSystemLog({
+    user_id: userId, role: user.role, action: 'auth.change_password',
+    ip_address: 'server', user_agent: 'server',
+    payload: {}, result: 'success',
+  });
+
   return { updated: true };
 }

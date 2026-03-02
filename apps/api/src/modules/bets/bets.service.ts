@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../../config/database';
 import { writeSystemLog } from '../../utils/systemLog';
 import { combinations, SYSTEM_BET_TYPES, calculatePlaceOdds, isQuarterLine, getSystemBetCount } from './bets.utils';
+import { emitToUser } from '../../utils/socketEvents';
 
 interface BetSelection {
   event_id: number;
@@ -224,6 +225,8 @@ export async function placeBet(params: PlaceBetParams) {
     payload: { bet_uid: result.bet_uid, type, stake: totalStake, potential_win: potentialWin, selections_count: selections.length, ...metadata },
     result: 'success',
   });
+  const account = await db('credit_accounts').where({ user_id: userId }).first();
+  emitToUser(userId, 'balance:updated', { reason: 'bet.placed', balance: account?.balance || 0 });
 
   return {
     bet_uid: result.bet_uid,
@@ -333,6 +336,8 @@ export async function cashoutBet(userId: number, betUid: string, ip: string, use
     payload: result,
     result: 'success',
   });
+  const account = await db('credit_accounts').where({ user_id: userId }).first();
+  emitToUser(userId, 'balance:updated', { reason: 'bet.cashout', balance: account?.balance || 0 });
 
   return result;
 }
@@ -429,6 +434,8 @@ export async function partialCashoutBet(
     payload: result,
     result: 'success',
   });
+  const account = await db('credit_accounts').where({ user_id: userId }).first();
+  emitToUser(userId, 'balance:updated', { reason: 'bet.partial_cashout', balance: account?.balance || 0 });
 
   return result;
 }

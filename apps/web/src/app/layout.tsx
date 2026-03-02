@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import { Toaster } from '@/components/ui/toaster';
 import { QueryProvider } from '@/lib/query-client';
+import { AuthBootstrap } from '@/components/app/AuthBootstrap';
 import './globals.css';
 import './variant-mobile.css';
 
@@ -33,6 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-[family-name:var(--font-geist-sans)] antialiased`}
       >
         <QueryProvider>
+          <AuthBootstrap />
           {children}
           <Toaster />
         </QueryProvider>

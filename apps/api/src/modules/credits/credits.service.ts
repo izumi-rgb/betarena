@@ -1,5 +1,6 @@
 import db from '../../config/database';
 import { writeSystemLog } from '../../utils/systemLog';
+import { emitToUser } from '../../utils/socketEvents';
 
 export async function adminCreateCredits(
   adminId: number,
@@ -35,6 +36,7 @@ export async function adminCreateCredits(
   });
 
   const account = await db('credit_accounts').where({ user_id: adminId }).first();
+  emitToUser(adminId, 'balance:updated', { reason: 'credit.create', balance: account?.balance || 0 });
   return { balance: account.balance, created: amount };
 }
 
@@ -97,6 +99,13 @@ export async function transferCredits(
     payload: { to_user_id: receiverId, amount },
     result: 'success',
   });
+
+  const [senderAccount, receiverAccount] = await Promise.all([
+    db('credit_accounts').where({ user_id: senderId }).first(),
+    db('credit_accounts').where({ user_id: receiverId }).first(),
+  ]);
+  emitToUser(senderId, 'balance:updated', { reason: 'credit.transfer.sent', balance: senderAccount?.balance || 0 });
+  emitToUser(receiverId, 'balance:updated', { reason: 'credit.transfer.received', balance: receiverAccount?.balance || 0 });
 
   return { amount, to_user_id: receiverId };
 }

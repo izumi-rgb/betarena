@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { useCredits } from '@/contexts/CreditsContext';
+import { apiGet } from '@/lib/api';
 
 const customStyles = {
   scrollbar: `
@@ -74,14 +76,6 @@ const Sidebar = () => {
         </svg>
         <span className={`text-[14px] ${pathname === '/in-play' ? 'font-bold' : 'font-medium'}`}>In-Play</span>
         <span className="ml-auto bg-[#00C37B] text-[#0B0E1A] text-[10px] font-bold px-1.5 py-0.5 rounded">LIVE</span>
-      </Link>
-
-      <Link to="/live" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/live' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
-          <polygon points="23 7 16 12 23 17 23 7" />
-          <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-        </svg>
-        <span className="font-medium text-[14px]">Live Stream</span>
       </Link>
 
       <Link to="/my-bets" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/my-bets' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
@@ -419,15 +413,71 @@ const CashOutModal = ({ isOpen, onClose, betId, amount }) => {
   );
 };
 
+const ApiBetCard = ({ bet }) => {
+  const statusColor = bet.status === 'open' ? '#00C37B' : bet.status === 'won' ? '#00C37B' : bet.status === 'lost' ? '#EF4444' : '#F59E0B';
+  return (
+    <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-5 space-y-3">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-white font-bold text-[14px] capitalize">{bet.type} Bet</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: `${statusColor}20`, color: statusColor }}>{(bet.status || 'open').toUpperCase()}</span>
+        </div>
+        <span className="text-[#64748B] text-[11px] font-mono">{bet.uid || bet.id}</span>
+      </div>
+      {(bet.selections || []).map((sel, i) => (
+        <div key={i} className="bg-[#111827] border border-[#1E293B] rounded-lg p-3">
+          <div className="flex justify-between">
+            <span className="text-[#94A3B8] text-[12px]">{sel.market_type}</span>
+            <span className="text-[#F59E0B] font-mono font-bold text-[13px]">{parseFloat(sel.odds).toFixed(2)}</span>
+          </div>
+          <div className="text-white font-bold text-[13px] mt-1">{sel.selection_name}</div>
+        </div>
+      ))}
+      <div className="flex justify-between border-t border-[#1E293B] pt-3">
+        <div>
+          <div className="text-[#64748B] text-[11px]">Stake</div>
+          <div className="text-white font-mono font-bold">{parseFloat(bet.stake).toFixed(2)} CR</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[#64748B] text-[11px]">Potential Return</div>
+          <div className="text-[#00C37B] font-mono font-bold">{parseFloat(bet.potential_return || 0).toFixed(2)} CR</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MyBetsPage = () => {
   const [activeTab, setActiveTab] = useState('open');
   const [cashOutModal, setCashOutModal] = useState({ isOpen: false, betId: '', amount: 0 });
+  const [apiBets, setApiBets] = useState([]);
+  const [betsLoading, setBetsLoading] = useState(true);
+  const { isAuthenticated } = useCredits();
+
+  useEffect(() => {
+    if (!isAuthenticated) { setBetsLoading(false); return; }
+    const fetchBets = async () => {
+      try {
+        const res = await apiGet('/api/bets/my-bets');
+        if (res.success && res.data) {
+          const bets = Array.isArray(res.data) ? res.data : (res.data.bets || []);
+          setApiBets(bets);
+        }
+      } catch { /* fallback to hardcoded */ }
+      finally { setBetsLoading(false); }
+    };
+    fetchBets();
+  }, [isAuthenticated]);
 
   const handleCashOut = (betId, amount) => {
     setCashOutModal({ isOpen: true, betId, amount });
   };
 
   const closeModal = () => setCashOutModal({ isOpen: false, betId: '', amount: 0 });
+
+  const openBets = apiBets.filter(b => b.status === 'open' || b.status === 'pending');
+  const settledBets = apiBets.filter(b => ['won', 'lost', 'void', 'settled'].includes(b.status));
+  const hasApiBets = apiBets.length > 0;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 pt-6">
@@ -438,7 +488,7 @@ const MyBetsPage = () => {
             className={`pb-3 border-b-2 font-semibold text-[14px] flex items-center gap-2 transition-colors ${activeTab === 'open' ? 'border-[#00C37B] text-white' : 'border-transparent text-[#94A3B8] hover:text-white'}`}
           >
             Open Bets
-            <span className="bg-[rgba(0,195,123,0.15)] text-[#00C37B] text-[11px] px-1.5 py-0.5 rounded font-bold">3</span>
+            <span className="bg-[rgba(0,195,123,0.15)] text-[#00C37B] text-[11px] px-1.5 py-0.5 rounded font-bold">{hasApiBets ? openBets.length : 3}</span>
           </button>
           <button
             onClick={() => setActiveTab('settled')}
@@ -451,24 +501,41 @@ const MyBetsPage = () => {
             className={`pb-3 border-b-2 font-medium text-[14px] transition-colors flex items-center gap-2 ${activeTab === 'cashout' ? 'border-[#00C37B] text-white font-semibold' : 'border-transparent text-[#94A3B8] hover:text-white'}`}
           >
             Cash Out
-            <span className="bg-[rgba(245,158,11,0.15)] text-[#F59E0B] text-[11px] px-1.5 py-0.5 rounded font-bold">2</span>
+            <span className="bg-[rgba(245,158,11,0.15)] text-[#F59E0B] text-[11px] px-1.5 py-0.5 rounded font-bold">{hasApiBets ? openBets.filter(b => b.cashout_available).length : 2}</span>
           </button>
         </div>
 
+        {betsLoading && (
+          <div className="text-center py-12 text-[#64748B]">
+            <div className="animate-spin w-8 h-8 border-2 border-[#00C37B] border-t-transparent rounded-full mx-auto mb-3" />
+            <div className="text-[13px]">Loading your bets...</div>
+          </div>
+        )}
+
         <div className="space-y-4">
-          {activeTab === 'open' && (
-            <>
-              <AccumulatorBetCard onCashOut={handleCashOut} />
-              <SingleBetCard onCashOut={handleCashOut} />
-              <LiveBetCard />
-              <SettledBets />
-            </>
+          {activeTab === 'open' && !betsLoading && (
+            hasApiBets ? (
+              openBets.length > 0 ? openBets.map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
+                <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No open bets</div></div>
+              )
+            ) : (
+              <>
+                <AccumulatorBetCard onCashOut={handleCashOut} />
+                <SingleBetCard onCashOut={handleCashOut} />
+                <LiveBetCard />
+                <SettledBets />
+              </>
+            )
           )}
 
-          {activeTab === 'settled' && (
-            <>
+          {activeTab === 'settled' && !betsLoading && (
+            hasApiBets ? (
+              settledBets.length > 0 ? settledBets.map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
+                <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No settled bets yet</div></div>
+              )
+            ) : (
               <SettledBets />
-            </>
+            )
           )}
 
           {activeTab === 'cashout' && (
@@ -491,12 +558,12 @@ const MyBetsPage = () => {
 };
 
 const App = () => {
+  const { balance, isLoading: balanceLoading, formatBalance } = useCredits();
   const navTabsWithHref = [
-    { label: 'Sports', href: '/sports' },
+    { label: 'Home', href: '/sports' },
     { label: 'In-Play', href: '/in-play' },
-    { label: 'Live Stream', href: '/live' },
-    { label: 'My Bets', href: '/my-bets' },
     { label: 'Results', href: '/results' },
+    { label: 'My Bets', href: '/my-bets' },
     { label: 'Account', href: '/account' },
   ];
   const { pathname: rawPathname } = useLocation();
@@ -551,7 +618,7 @@ const App = () => {
               fontWeight: 700,
               color: '#00C37B',
               fontSize: '13px',
-            }}>$2,450.50</div>
+            }}>{balanceLoading ? '...' : formatBalance()}</div>
             <div style={{
               width: '36px',
               height: '36px',

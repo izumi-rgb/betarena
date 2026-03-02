@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { useCredits } from '@/contexts/CreditsContext';
 
 const customStyles = {
   appLayout: {
@@ -674,6 +675,7 @@ const LiveDot = () => {
 };
 
 const MatchPage = () => {
+  const { balance, isLoading: balanceLoading, formatBalance } = useCredits();
   const [activeSlipTab, setActiveSlipTab] = useState('Singles');
   const [selectedOdds, setSelectedOdds] = useState({
     matchResult: 'Arsenal',
@@ -704,11 +706,11 @@ const MatchPage = () => {
   const estReturns = selections.reduce((acc, s) => acc + parseFloat(s.stake || 0) * parseFloat(s.odds), 0);
 
   const navItems = [
-    { label: 'Sports', href: '/sports' },
+    { label: 'Home', href: '/sports' },
     { label: 'In-Play', href: '/dashboard' },
-    { label: 'Live Stream', href: '/live' },
-    { label: 'My Bets', href: '/my-bets' },
     { label: 'Results', href: '/reports' },
+    { label: 'My Bets', href: '/my-bets' },
+    { label: 'Account', href: '/account' },
   ];
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
 
@@ -816,7 +818,7 @@ const MatchPage = () => {
           </nav>
 
           <div style={customStyles.userArea}>
-            <div style={customStyles.balanceChip}>$2,450.50</div>
+            <div style={customStyles.balanceChip}>{balanceLoading ? '...' : formatBalance()}</div>
             <div style={customStyles.avatar}></div>
           </div>
         </header>
@@ -1262,11 +1264,11 @@ const MatchPage = () => {
             </div>
             <div style={customStyles.summaryRow}>
               <span>Total Stake</span>
-              <span style={customStyles.stakeVal}>£{totalStake.toFixed(2)}</span>
+              <span style={customStyles.stakeVal}>{totalStake.toFixed(2)} CR</span>
             </div>
             <div style={customStyles.summaryRowTotal}>
               <span>Est. Returns</span>
-              <span style={customStyles.returnVal}>£{estReturns.toFixed(2)}</span>
+              <span style={customStyles.returnVal}>{estReturns.toFixed(2)} CR</span>
             </div>
 
             <button
@@ -1274,7 +1276,7 @@ const MatchPage = () => {
               onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.1)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 195, 123, 0.3)'; }}
               onMouseLeave={e => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
               onMouseDown={e => e.currentTarget.style.transform = 'translateY(0)'}
-              onClick={() => { if (selections.length > 0) alert(`Bet placed! Total stake: £${totalStake.toFixed(2)}`); }}
+              onClick={() => { if (selections.length > 0) alert(`Bet placed! Total stake: ${totalStake.toFixed(2)} CR`); }}
             >
               PLACE BET
             </button>

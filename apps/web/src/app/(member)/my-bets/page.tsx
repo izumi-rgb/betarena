@@ -1,7 +1,7 @@
 'use client';
 
-import MyBetsScreen from '@variant-exports/variant_my_bets';
+import App from '@variant-exports/variant_my_bets';
 
-export default function Page() {
-  return <MyBetsScreen />;
+export default function MyBetsPage() {
+  return <App />;
 }

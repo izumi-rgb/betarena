@@ -1,7 +1,7 @@
 'use client';
 
-import InPlayScreen from '@variant-exports/variant_inplay';
+import App from '@variant-exports/variant_inplay';
 
-export default function Page() {
-  return <InPlayScreen />;
+export default function InPlayPage() {
+  return <App />;
 }

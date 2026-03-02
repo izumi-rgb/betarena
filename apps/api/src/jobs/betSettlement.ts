@@ -2,6 +2,7 @@ import db from '../config/database';
 import { writeSystemLog } from '../utils/systemLog';
 import logger from '../config/logger';
 import { combinations, SYSTEM_BET_TYPES, calculatePlaceOdds, isQuarterLine } from '../modules/bets/bets.utils';
+import { emitToUser } from '../utils/socketEvents';
 
 interface EventResult {
   id: number;
@@ -298,6 +299,10 @@ async function settleVoid(bet: any): Promise<void> {
     payload: { bet_uid: bet.bet_uid, result: 'void', refund: bet.stake },
     result: 'success',
   });
+
+  const account = await db('credit_accounts').where({ user_id: bet.user_id }).first();
+  emitToUser(bet.user_id, 'bet:settled', { betUid: bet.bet_uid, status: 'void', payout: Number(bet.stake) });
+  emitToUser(bet.user_id, 'balance:updated', { reason: 'bet.settle.void', balance: account?.balance || 0 });
 }
 
 async function applySettlement(bet: any, status: 'won' | 'lost' | 'void', payout: number): Promise<void> {
@@ -338,5 +343,8 @@ async function applySettlement(bet: any, status: 'won' | 'lost' | 'void', payout
     result: 'success',
   });
 
+  const account = await db('credit_accounts').where({ user_id: bet.user_id }).first();
+  emitToUser(bet.user_id, 'bet:settled', { betUid: bet.bet_uid, status, payout });
+  emitToUser(bet.user_id, 'balance:updated', { reason: `bet.settle.${status}`, balance: account?.balance || 0 });
   logger.info('Bet settled', { betUid: bet.bet_uid, result: status, payout });
 }

@@ -23,7 +23,7 @@ export function middleware(req: NextRequest) {
 
   // Public browsing is allowed for member-facing routes.
   // Login is only required when entering restricted role areas or performing protected actions.
-  if (!token && (pathname.startsWith('/admin') || pathname.startsWith('/agent'))) {
+  if (!token && (pathname.startsWith('/admin') || pathname.startsWith('/agent/'))) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
@@ -36,13 +36,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(dest, req.url));
   }
 
-  if (pathname.startsWith('/agent') && role !== 'agent' && role !== 'sub_agent') {
-    const dest = role === 'admin' ? '/admin/dashboard' : '/sports';
+  if (pathname.startsWith('/agent/') && role !== 'agent' && role !== 'sub_agent') {
+    const dest = role === 'admin' ? '/admin/overview' : '/sports';
     return NextResponse.redirect(new URL(dest, req.url));
   }
 
   if ((pathname.startsWith('/sports') || pathname.startsWith('/results') || pathname.startsWith('/my-bets') || pathname.startsWith('/account') || pathname.startsWith('/in-play') || pathname.startsWith('/live')) && role === 'admin') {
-    return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+    return NextResponse.redirect(new URL('/admin/overview', req.url));
   }
 
   if ((pathname.startsWith('/sports') || pathname.startsWith('/results') || pathname.startsWith('/my-bets') || pathname.startsWith('/account')) && (role === 'agent' || role === 'sub_agent')) {

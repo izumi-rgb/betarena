@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { useCredits } from '@/contexts/CreditsContext';
 
 const Sidebar = () => {
   const { pathname } = useLocation();
@@ -17,27 +18,26 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 py-6 px-3 space-y-1">
-        <Link to="/sports" className={linkClass('/sports')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">Sports</span></Link>
+        <Link to="/sports" className={linkClass('/sports')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">Home</span></Link>
         <Link to="/in-play" className={linkClass('/in-play')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">In-Play</span></Link>
-        <Link to="/live" className={linkClass('/live')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">Live Stream</span></Link>
-        <Link to="/my-bets" className={linkClass('/my-bets')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">My Bets</span></Link>
         <Link to="/results" className={linkClass('/results')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">Results</span></Link>
+        <Link to="/my-bets" className={linkClass('/my-bets')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">My Bets</span></Link>
 
         <div className="my-4 border-t border-[#1E293B]" />
 
-        <Link to="/account" className={linkClass('/account')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">My Account</span></Link>
+        <Link to="/account" className={linkClass('/account')} style={{ textDecoration: 'none' }}><span className="font-medium text-[14px]">Account</span></Link>
       </nav>
     </aside>
   );
 };
 
 const ResultsPage = () => {
+  const { balance, isLoading: balanceLoading, formatBalance } = useCredits();
   const navTabsWithHref = [
-    { label: 'Sports', href: '/sports' },
+    { label: 'Home', href: '/sports' },
     { label: 'In-Play', href: '/in-play' },
-    { label: 'Live Stream', href: '/live' },
-    { label: 'My Bets', href: '/my-bets' },
     { label: 'Results', href: '/results' },
+    { label: 'My Bets', href: '/my-bets' },
     { label: 'Account', href: '/account' },
   ];
   const { pathname } = useLocation();
@@ -70,7 +70,7 @@ const ResultsPage = () => {
         </nav>
 
         <div className="flex items-center gap-4">
-          <div className="bg-[#0B0E1A] border border-[#1E293B] px-3 py-1.5 rounded-[20px] font-mono font-bold text-[#00C37B] text-[13px]">$2,450.50</div>
+          <div className="bg-[#0B0E1A] border border-[#1E293B] px-3 py-1.5 rounded-[20px] font-mono font-bold text-[#00C37B] text-[13px]">{balanceLoading ? '...' : formatBalance()}</div>
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] border-2 border-[#1A2235]" />
         </div>
       </header>
@@ -108,14 +108,10 @@ const ResultsPage = () => {
 
 const App = () => {
   return (
-    <Router basename="/">
-      <div className="h-screen flex overflow-hidden" style={{ background: 'radial-gradient(circle at top center, #1a2235 0%, #0B0E1A 60%)', color: '#F1F5F9', fontFamily: "'Inter', sans-serif" }}>
-        <Sidebar />
-        <Routes>
-          <Route path="/" element={<ResultsPage />} />
-        </Routes>
-      </div>
-    </Router>
+    <div className="h-screen flex overflow-hidden" style={{ background: 'radial-gradient(circle at top center, #1a2235 0%, #0B0E1A 60%)', color: '#F1F5F9', fontFamily: "'Inter', sans-serif" }}>
+      <Sidebar />
+      <ResultsPage />
+    </div>
   );
 };
 

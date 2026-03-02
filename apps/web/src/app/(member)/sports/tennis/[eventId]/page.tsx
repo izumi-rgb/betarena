@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api';
 import { connectSocket, getSocket, joinEventRoom, leaveEventRoom } from '@/lib/socket';
 import { useBetSlipStore } from '@/stores/betSlipStore';
 import { useAuthStore } from '@/stores/authStore';
+import { SportSidebar, TopHeader } from '@/components/app/SportSidebar';
 
 type MarketSelection = {
   id: string;
@@ -61,15 +61,6 @@ type BetPick = {
   selection: string;
   odds: number;
 };
-
-const MEMBER_NAV_LINKS = [
-  { href: '/sports', label: 'Sports' },
-  { href: '/in-play', label: 'In-Play' },
-  { href: '/live', label: 'Live Stream' },
-  { href: '/my-bets', label: 'My Bets' },
-  { href: '/results', label: 'Results' },
-  { href: '/account', label: 'Account' },
-];
 
 function LiveBadge() {
   return (
@@ -139,73 +130,10 @@ function MarketAccordion({ title, children, defaultOpen = true }: { title: strin
   );
 }
 
-function SportSidebar() {
-  const pathname = usePathname();
-
-  return (
-    <aside className="w-[240px] shrink-0 border-r border-[#1E293B] bg-[#111827]">
-      <div className="flex h-16 items-center gap-2 border-b border-[#1E293B] px-6">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="text-[#00C37B]">
-          <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
-        </svg>
-        <span className="text-[20px] font-extrabold tracking-tight text-white">BET<span className="text-[#00C37B]">ARENA</span></span>
-      </div>
-      <nav className="space-y-1 p-3">
-        {MEMBER_NAV_LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`block rounded-md px-3 py-2.5 text-sm transition-colors ${
-              pathname === l.href
-                ? 'bg-[#1A2235] text-white'
-                : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
-            }`}
-          >
-            {l.label}
-          </Link>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-function TopHeader() {
-  const pathname = usePathname();
-
-  return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#1E293B] bg-[#111827]/80 px-6 backdrop-blur">
-      <nav className="flex gap-1">
-        {MEMBER_NAV_LINKS.map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`rounded px-4 py-2 text-sm font-medium transition-colors ${
-              pathname === t.href
-                ? 'bg-[#1A2235] text-white'
-                : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-      <div className="flex items-center gap-4">
-        <div className="rounded-full border border-[#1E293B] bg-[#0B0E1A] px-3 py-1.5 font-mono text-[13px] font-bold text-[#00C37B]">$2,450.50</div>
-        <div className="h-9 w-9 rounded-full border-2 border-[#1A2235] bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6]" />
-      </div>
-    </header>
-  );
-}
-
 function MatchCard({ event, onPick, picks, eventId }: { event: TennisEvent; onPick: (pick: BetPick) => void; picks: BetPick[]; eventId: number }) {
   const servingHome = event.serving === 'home';
   const servingAway = event.serving === 'away';
-  const stats = event.stats ?? {
-    aces: [11, 8],
-    doubleFaults: [3, 5],
-    breakPoints: [4, 2],
-    winners: [27, 22],
-  };
+  const stats = event.stats ?? {};
 
   const marketGroups = useMemo(
     () => [
@@ -223,56 +151,6 @@ function MatchCard({ event, onPick, picks, eventId }: { event: TennisEvent; onPi
   );
 
   const marketByType = new Map(event.markets.map((m) => [m.type || m.name.toLowerCase().replace(/\s+/g, '_'), m]));
-
-  const defaultSelections: Record<string, MarketSelection[]> = {
-    match_winner: [
-      { id: 'mw_home', name: event.homeTeam.name, odds: 1.72 },
-      { id: 'mw_away', name: event.awayTeam.name, odds: 2.10 },
-    ],
-    set_betting: [
-      { id: 'sb_20', name: `${event.homeTeam.name} 2-0`, odds: 2.95 },
-      { id: 'sb_21', name: `${event.homeTeam.name} 2-1`, odds: 3.55 },
-      { id: 'sb_02', name: `${event.awayTeam.name} 0-2`, odds: 3.80 },
-      { id: 'sb_12', name: `${event.awayTeam.name} 1-2`, odds: 3.10 },
-    ],
-    total_games_ou: [19.5, 20.5, 21.5, 22.5, 23.5].flatMap((line) => [
-      { id: `tgo_${line}`, name: `Over ${line}`, odds: 1.90 },
-      { id: `tgu_${line}`, name: `Under ${line}`, odds: 1.90 },
-    ]),
-    games_handicap: [-3.5, -2.5, -1.5, 1.5, 2.5, 3.5].map((h, i) => ({
-      id: `gh_${i}`,
-      name: `${h > 0 ? '+' : ''}${h} ${h < 0 ? event.homeTeam.name : event.awayTeam.name}`,
-      odds: 1.95,
-    })),
-    first_set_winner: [
-      { id: 'fs_home', name: event.homeTeam.name, odds: 1.80 },
-      { id: 'fs_away', name: event.awayTeam.name, odds: 2.00 },
-    ],
-    each_set_winner: [
-      { id: 'es1_home', name: 'Set 1 - Home', odds: 1.82 },
-      { id: 'es1_away', name: 'Set 1 - Away', odds: 1.98 },
-      { id: 'es2_home', name: 'Set 2 - Home', odds: 1.84 },
-      { id: 'es2_away', name: 'Set 2 - Away', odds: 1.96 },
-      { id: 'es3_home', name: 'Set 3 - Home', odds: 2.02 },
-      { id: 'es3_away', name: 'Set 3 - Away', odds: 1.78 },
-    ],
-    correct_score_sets: [
-      { id: 'cs_20', name: '2-0', odds: 2.95 },
-      { id: 'cs_21', name: '2-1', odds: 3.45 },
-      { id: 'cs_02', name: '0-2', odds: 3.60 },
-      { id: 'cs_12', name: '1-2', odds: 3.20 },
-    ],
-    any_set_to_nil: [
-      { id: 'asn_yes', name: 'Yes', odds: 2.05 },
-      { id: 'asn_no', name: 'No', odds: 1.75 },
-    ],
-    tournament_outright: [
-      { id: 'to_home', name: event.homeTeam.name, odds: 7.50 },
-      { id: 'to_away', name: event.awayTeam.name, odds: 9.00 },
-      { id: 'to_other1', name: 'Player C', odds: 11.00 },
-      { id: 'to_other2', name: 'Player D', odds: 14.00 },
-    ],
-  };
 
   return (
     <div className="space-y-4">
@@ -320,7 +198,10 @@ function MatchCard({ event, onPick, picks, eventId }: { event: TennisEvent; onPi
 
       {marketGroups.map((g) => {
         const m = marketByType.get(g.key);
-        const selections = m?.selections?.length ? m.selections : defaultSelections[g.key] ?? [];
+        const selections = m?.selections ?? [];
+
+        if (!selections.length) return null;
+
         return (
           <MarketAccordion key={g.key} title={g.title}>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3">

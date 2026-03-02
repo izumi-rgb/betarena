@@ -15,14 +15,16 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
+  isHydrating: boolean;
   isAuthenticated: boolean;
 }
 
 interface AuthActions {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshToken: () => Promise<void>;
-  fetchMe: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
+  fetchMe: (options?: { silent?: boolean }) => Promise<boolean>;
+  hydrateSession: () => Promise<void>;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
 }
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       ? localStorage.getItem("accessToken")
       : null,
   isLoading: false,
+  isHydrating: false,
   isAuthenticated: false,
 
   setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -56,7 +59,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const { user, accessToken } = res.data;
       get().setToken(accessToken);
       connectSocket(accessToken);
-      set({ user, isAuthenticated: true });
+      set({ user, isAuthenticated: true, isHydrating: false });
     } finally {
       set({ isLoading: false });
     }
@@ -71,7 +74,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     } finally {
       get().setToken(null);
       disconnectSocket();
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      set({ user: null, isAuthenticated: false, isLoading: false, isHydrating: false });
     }
   },
 
@@ -80,23 +83,82 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const res = await apiPost<{ accessToken: string }>(
         "/api/auth/refresh",
       );
-      get().setToken(res.data.accessToken);
+      const freshToken = res.data.accessToken;
+      get().setToken(freshToken);
+      connectSocket(freshToken);
+      return true;
     } catch {
       get().setToken(null);
+      disconnectSocket();
       set({ user: null, isAuthenticated: false });
+      return false;
     }
   },
 
-  fetchMe: async () => {
-    set({ isLoading: true });
+  fetchMe: async (options) => {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      set({ isLoading: true });
+    }
     try {
       const res = await apiGet<User>("/api/auth/me");
       set({ user: res.data, isAuthenticated: true });
+      const token = get().accessToken;
+      if (token) {
+        connectSocket(token);
+      }
+      return true;
     } catch {
       get().setToken(null);
+      disconnectSocket();
       set({ user: null, isAuthenticated: false });
+      return false;
     } finally {
-      set({ isLoading: false });
+      if (!silent) {
+        set({ isLoading: false });
+      }
+    }
+  },
+
+  hydrateSession: async () => {
+    if (get().isHydrating || get().isAuthenticated) {
+      return;
+    }
+
+    set({ isHydrating: true });
+    try {
+      const token =
+        get().accessToken
+        || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
+
+      if (!token) {
+        set({ user: null, isAuthenticated: false });
+        return;
+      }
+
+      get().setToken(token);
+
+      const meLoaded = await get().fetchMe({ silent: true });
+      if (meLoaded) {
+        return;
+      }
+
+      const refreshed = await get().refreshToken();
+      if (!refreshed) {
+        get().setToken(null);
+        disconnectSocket();
+        set({ user: null, isAuthenticated: false });
+        return;
+      }
+
+      const meAfterRefresh = await get().fetchMe({ silent: true });
+      if (!meAfterRefresh) {
+        get().setToken(null);
+        disconnectSocket();
+        set({ user: null, isAuthenticated: false });
+      }
+    } finally {
+      set({ isHydrating: false });
     }
   },
 }));

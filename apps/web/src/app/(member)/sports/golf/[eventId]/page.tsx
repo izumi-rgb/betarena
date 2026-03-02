@@ -209,20 +209,6 @@ export default function GolfTournamentPage() {
   const toggleSharedPick = useBetSlipStore((s) => s.togglePick);
   const removeSharedPick = useBetSlipStore((s) => s.removePick);
 
-  const fallbackLeaderboard: LeaderboardRow[] = useMemo(
-    () => [
-      { id: 'p1', pos: 1, trend: 'up', player: 'R. McIlroy', r1: 67, r2: 66, r3: 0, r4: 0, total: -11, odds: 3.8 },
-      { id: 'p2', pos: 2, trend: 'same', player: 'S. Scheffler', r1: 68, r2: 66, r3: 0, r4: 0, total: -10, odds: 4.2 },
-      { id: 'p3', pos: 3, trend: 'up', player: 'J. Rahm', r1: 69, r2: 66, r3: 0, r4: 0, total: -9, odds: 5.0 },
-      { id: 'p4', pos: 4, trend: 'down', player: 'V. Hovland', r1: 67, r2: 69, r3: 0, r4: 0, total: -8, odds: 7.5 },
-      { id: 'p5', pos: 5, trend: 'same', player: 'C. Morikawa', r1: 69, r2: 68, r3: 0, r4: 0, total: -7, odds: 9.0 },
-      { id: 'p6', pos: 6, trend: 'up', player: 'B. DeChambeau', r1: 70, r2: 68, r3: 0, r4: 0, total: -6, odds: 11.5 },
-      { id: 'p7', pos: 7, trend: 'down', player: 'X. Schauffele', r1: 69, r2: 70, r3: 0, r4: 0, total: -5, odds: 13.0 },
-      { id: 'p8', pos: 8, trend: 'same', player: 'M. Fitzpatrick', r1: 71, r2: 68, r3: 0, r4: 0, total: -4, odds: 15.0 },
-    ],
-    [],
-  );
-
   const loadEvent = useCallback(async () => {
     if (!eventId) return;
     setError(null);
@@ -322,32 +308,6 @@ export default function GolfTournamentPage() {
     [],
   );
 
-  const defaultMarkets: Record<string, MarketSelection[]> = {
-    tournament_winner: fallbackLeaderboard.slice(0, 8).map((p) => ({ id: `tw_${p.id}`, name: p.player, odds: p.odds })),
-    top_5_finish: fallbackLeaderboard.slice(0, 8).map((p, idx) => ({ id: `t5_${idx}`, name: p.player, odds: Number((p.odds / 2.2).toFixed(2)) })),
-    top_10_finish: fallbackLeaderboard.slice(0, 8).map((p, idx) => ({ id: `t10_${idx}`, name: p.player, odds: Number((p.odds / 3.1).toFixed(2)) })),
-    top_20_finish: fallbackLeaderboard.slice(0, 8).map((p, idx) => ({ id: `t20_${idx}`, name: p.player, odds: Number((p.odds / 4.0).toFixed(2)) })),
-    make_miss_cut: [
-      { id: 'mmc_make', name: 'Make Cut', odds: 1.55 },
-      { id: 'mmc_miss', name: 'Miss Cut', odds: 2.45 },
-    ],
-    head_to_head: [
-      { id: 'h2h_1', name: 'McIlroy vs Rahm', odds: 1.88 },
-      { id: 'h2h_2', name: 'Scheffler vs Hovland', odds: 1.91 },
-      { id: 'h2h_3', name: 'Morikawa vs Fitzpatrick', odds: 1.86 },
-    ],
-    winning_score_ou: [
-      { id: 'wso_over', name: 'Over -14.5', odds: 1.90 },
-      { id: 'wso_under', name: 'Under -14.5', odds: 1.90 },
-    ],
-    country_winner: [
-      { id: 'cw_usa', name: 'USA', odds: 1.72 },
-      { id: 'cw_irl', name: 'Ireland', odds: 3.2 },
-      { id: 'cw_spain', name: 'Spain', odds: 4.0 },
-      { id: 'cw_uk', name: 'UK', odds: 4.8 },
-    ],
-  };
-
   if (loading) {
     return <div className="flex h-screen items-center justify-center bg-[#0B0E1A] text-[#94A3B8]">Loading golf tournament...</div>;
   }
@@ -364,7 +324,7 @@ export default function GolfTournamentPage() {
     );
   }
 
-  const leaderboard = event.leaderboard ?? fallbackLeaderboard;
+  const leaderboard = event.leaderboard ?? [];
   const top3 = leaderboard.slice(0, 3);
   const marketByType = new Map((event.markets ?? []).map((m) => [m.type || m.name.toLowerCase().replace(/\s+/g, '_'), m]));
 
@@ -390,15 +350,17 @@ export default function GolfTournamentPage() {
               {event.status === 'live' ? <LiveBadge /> : null}
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              {top3.map((r) => (
-                <div key={r.id} className="rounded-lg border border-[#1E293B] bg-[#111827] p-3">
-                  <div className="text-xs text-[#64748B]">#{r.pos}</div>
-                  <div className="mt-1 font-semibold text-white">{r.player}</div>
-                  <div className="mt-1 font-mono text-sm text-[#00C37B]">{r.total > 0 ? `+${r.total}` : r.total}</div>
-                </div>
-              ))}
-            </div>
+            {top3.length > 0 && (
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {top3.map((r) => (
+                  <div key={r.id} className="rounded-lg border border-[#1E293B] bg-[#111827] p-3">
+                    <div className="text-xs text-[#64748B]">#{r.pos}</div>
+                    <div className="mt-1 font-semibold text-white">{r.player}</div>
+                    <div className="mt-1 font-mono text-sm text-[#00C37B]">{r.total > 0 ? `+${r.total}` : r.total}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[65%_35%]">
@@ -420,28 +382,36 @@ export default function GolfTournamentPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboard.map((row) => (
-                      <tr key={row.id} className="border-b border-[#1E293B]/50">
-                        <td className="px-2 py-2">
-                          <span className="mr-1 text-[#94A3B8]">{trendArrow(row.trend)}</span>
-                          <span className="font-semibold text-white">{row.pos}</span>
-                        </td>
-                        <td className="px-2 py-2 font-semibold text-white">{row.player}</td>
-                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r1)}`}>{row.r1 || '-'}</td>
-                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r2)}`}>{row.r2 || '-'}</td>
-                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r3)}`}>{row.r3 || '-'}</td>
-                        <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r4)}`}>{row.r4 || '-'}</td>
-                        <td className="px-2 py-2 text-center font-mono text-lg font-bold text-[#00C37B]">{row.total > 0 ? `+${row.total}` : row.total}</td>
-                        <td className="px-2 py-2">
-                          <OddsButton
-                            label="Outright"
-                            odds={row.odds}
-                            active={picks.some((p) => p.id === `lb_${row.id}`)}
-                            onClick={() => addPick({ id: `lb_${row.id}`, eventId: Number(eventId), market: 'Tournament Winner', marketType: 'tournament_winner', selection: row.player, odds: row.odds })}
-                          />
+                    {leaderboard.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-2 py-8 text-center text-sm text-[#64748B]">
+                          Leaderboard data not yet available
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      leaderboard.map((row) => (
+                        <tr key={row.id} className="border-b border-[#1E293B]/50">
+                          <td className="px-2 py-2">
+                            <span className="mr-1 text-[#94A3B8]">{trendArrow(row.trend)}</span>
+                            <span className="font-semibold text-white">{row.pos}</span>
+                          </td>
+                          <td className="px-2 py-2 font-semibold text-white">{row.player}</td>
+                          <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r1)}`}>{row.r1 || '-'}</td>
+                          <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r2)}`}>{row.r2 || '-'}</td>
+                          <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r3)}`}>{row.r3 || '-'}</td>
+                          <td className={`px-2 py-2 text-center font-mono ${scoreClass(row.r4)}`}>{row.r4 || '-'}</td>
+                          <td className="px-2 py-2 text-center font-mono text-lg font-bold text-[#00C37B]">{row.total > 0 ? `+${row.total}` : row.total}</td>
+                          <td className="px-2 py-2">
+                            <OddsButton
+                              label="Outright"
+                              odds={row.odds}
+                              active={picks.some((p) => p.id === `lb_${row.id}`)}
+                              onClick={() => addPick({ id: `lb_${row.id}`, eventId: Number(eventId), market: 'Tournament Winner', marketType: 'tournament_winner', selection: row.player, odds: row.odds })}
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -450,7 +420,9 @@ export default function GolfTournamentPage() {
             <div className="space-y-4">
               {marketGroups.map((g) => {
                 const market = marketByType.get(g.key);
-                const selections = market?.selections?.length ? market.selections : defaultMarkets[g.key] ?? [];
+                const selections = market?.selections ?? [];
+
+                if (!selections.length) return null;
 
                 return (
                   <MarketAccordion key={g.key} title={g.title} defaultOpen={g.key === 'tournament_winner'}>

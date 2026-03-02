@@ -1,7 +1,7 @@
 'use client';
 
-import MyAccountScreen from '@variant-exports/variant_my_account';
+import App from '@variant-exports/variant_my_account';
 
-export default function Page() {
-  return <MyAccountScreen />;
+export default function AccountPage() {
+  return <App />;
 }

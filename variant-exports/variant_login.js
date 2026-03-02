@@ -163,6 +163,40 @@ const ErrorIcon = () => (
   </svg>
 );
 
+const InfoModal = ({ isOpen, onClose, title, message }) => {
+  if (!isOpen) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#111827', border: '1px solid #1E293B', borderRadius: '16px',
+        padding: '32px', maxWidth: '380px', width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(0,195,123,0.1)', border: '1px solid #00C37B', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>ℹ️</div>
+          <h3 style={{ color: '#F1F5F9', fontSize: '16px', fontWeight: 700, margin: 0, fontFamily: "'Inter', sans-serif" }}>{title}</h3>
+        </div>
+        <p style={{ color: '#94A3B8', fontSize: '14px', lineHeight: 1.6, margin: '0 0 24px', fontFamily: "'Inter', sans-serif" }}>{message}</p>
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%', background: '#00C37B', color: '#000', border: 'none',
+            padding: '12px', borderRadius: '8px', fontWeight: 700, fontSize: '14px',
+            cursor: 'pointer', fontFamily: "'Inter', sans-serif", transition: 'background 0.2s',
+          }}
+          onMouseEnter={e => e.target.style.background = '#00a86b'}
+          onMouseLeave={e => e.target.style.background = '#00C37B'}
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const LoginCard = ({ initialUsername, initialPassword }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -180,6 +214,9 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
   const [contactHovered, setContactHovered] = useState(false);
   const [toggleHovered, setToggleHovered] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMsg, setModalMsg] = useState('');
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -204,7 +241,7 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
       return;
     }
     if (user.role === 'admin') {
-      router.replace('/admin/dashboard');
+      router.replace('/admin/overview');
       return;
     }
     if (user.role === 'agent' || user.role === 'sub_agent') {
@@ -387,7 +424,12 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
 
             <a
               href="#"
-              onClick={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.preventDefault();
+                setModalTitle('Reset Password');
+                setModalMsg('Please contact your assigned agent to reset your password. They will provide you with new login credentials.');
+                setModalOpen(true);
+              }}
               onMouseEnter={() => setForgotHovered(true)}
               onMouseLeave={() => setForgotHovered(false)}
               style={{
@@ -436,7 +478,11 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
             <span
               onMouseEnter={() => setContactHovered(true)}
               onMouseLeave={() => setContactHovered(false)}
-              onClick={() => {}}
+              onClick={() => {
+                setModalTitle('Create Account');
+                setModalMsg('BetArena accounts are created by agents only. Please contact your assigned agent to get your account set up.');
+                setModalOpen(true);
+              }}
               style={{
                 color: customStyles.textSecondary,
                 cursor: 'pointer',
@@ -447,6 +493,7 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
             </span>
           </div>
         </form>
+        <InfoModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={modalTitle} message={modalMsg} />
       </div>
     </div>
   );

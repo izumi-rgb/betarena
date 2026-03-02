@@ -64,7 +64,7 @@ COPY packages/shared/src/ packages/shared/src/
 COPY --from=build /app/apps/api/dist apps/api/dist
 
 # Copy compiled JS migrations for production
-COPY --from=build /app/apps/api/migrations-compiled/migrations/ apps/api/migrations/
+COPY --from=build /app/apps/api/migrations-compiled/ apps/api/migrations/
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs \

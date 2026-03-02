@@ -21,8 +21,9 @@ import resultsRoutes from './modules/results/results.routes';
 const app = express();
 
 app.use(helmet());
+const allowedOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
 app.use(cors({
-  origin: env.CORS_ORIGIN,
+  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));

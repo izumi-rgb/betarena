@@ -45,9 +45,9 @@ function normalizePath(input: string) {
     '/livestream': '/live',
     '/live-stream': '/live',
     '/live': '/live',
-    '/agent-dashboard': '/dashboard',
-    '/agent-reports': '/reports',
-    '/admin-dashboard': '/overview',
+    '/agent-dashboard': '/agent/dashboard',
+    '/agent-reports': '/agent/reports',
+    '/admin-dashboard': '/admin/overview',
     '/horse-racing': '/sports/horse-racing',
   };
 

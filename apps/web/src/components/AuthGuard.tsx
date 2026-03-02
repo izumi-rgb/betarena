@@ -35,7 +35,7 @@ export function AuthGuard({ children, requireAuth = true, allowedRoles }: AuthGu
 
     if (allowedRoles?.length && user && !allowedRoles.includes(user.role)) {
       if (user.role === 'admin') {
-        router.replace('/admin/dashboard');
+        router.replace('/admin/overview');
         return;
       }
       if (user.role === 'agent' || user.role === 'sub_agent') {

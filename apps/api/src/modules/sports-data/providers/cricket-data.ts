@@ -14,7 +14,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const PROVIDER = 'cricketdata';
-const BASE_URL = 'https://api.cricketdata.org/api/v1';
+const BASE_URL = 'https://api.cricapi.com/v1';
 const DAILY_LIMIT = 100;
 const SOFT_CAP = 90;
 
@@ -43,8 +43,7 @@ async function guardedFetch<T>(endpoint: string, params?: Record<string, string 
   if (!apiKey) return null;
 
   const response = await axios.get<T>(`${BASE_URL}${endpoint}`, {
-    headers: { 'x-cricketdata-token': apiKey },
-    params,
+    params: { apikey: apiKey, ...params },
     timeout: 10_000,
   });
 

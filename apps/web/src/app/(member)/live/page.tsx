@@ -1,7 +1,7 @@
 'use client';
 
-import InPlayScreen from '@variant-exports/variant_inplay';
+import { redirect } from 'next/navigation';
 
-export default function Page() {
-  return <InPlayScreen />;
+export default function LivePage() {
+  redirect('/in-play');
 }

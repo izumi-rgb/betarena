@@ -10,7 +10,7 @@ let io: Server;
 export function initSocket(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: {
-      origin: env.CORS_ORIGIN,
+      origin: env.CORS_ORIGIN.split(',').map(o => o.trim()),
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -36,6 +36,9 @@ export function initSocket(httpServer: HttpServer): Server {
 
   io.on('connection', (socket) => {
     logger.debug('Socket connected', { socketId: socket.id, userId: socket.data.user?.id, role: socket.data.role });
+    if (socket.data.user?.id) {
+      socket.join(`user:${socket.data.user.id}`);
+    }
 
     socket.on('join:event', async (eventId: string) => {
       socket.join(`event:${eventId}`);

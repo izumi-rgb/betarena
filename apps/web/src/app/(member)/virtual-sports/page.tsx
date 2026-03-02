@@ -1,7 +1,12 @@
 'use client';
 
-import SportsLobbyScreen from '@variant-exports/variant_home_sports_lobby';
+import { ComingSoon } from '@/components/app/ComingSoon';
 
-export default function Page() {
-  return <SportsLobbyScreen />;
+export default function VirtualSportsPage() {
+  return (
+    <ComingSoon
+      title="Virtual Sports Coming Soon"
+      description="Virtual sports markets are being finalized and will be available in an upcoming release."
+    />
+  );
 }

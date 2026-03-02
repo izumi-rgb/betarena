@@ -198,7 +198,7 @@ const App = () => {
               <path d="M2 12h20"></path>
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
-            <span className="font-medium text-[14px]">Sports</span>
+            <span className="font-medium text-[14px]">Home</span>
           </a>
 
           <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#94A3B8] hover:bg-[#1A2235] hover:text-white rounded-md transition-colors group">
@@ -217,10 +217,9 @@ const App = () => {
 
           <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#94A3B8] hover:bg-[#1A2235] hover:text-white rounded-md transition-colors group">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
-              <polygon points="23 7 16 12 23 17 23 7"></polygon>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
             </svg>
-            <span className="font-medium text-[14px]">Live Stream</span>
+            <span className="font-medium text-[14px]">Results</span>
           </a>
 
           <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#94A3B8] hover:bg-[#1A2235] hover:text-white rounded-md transition-colors group">
@@ -236,9 +235,9 @@ const App = () => {
 
           <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-[#94A3B8] hover:bg-[#1A2235] hover:text-white rounded-md transition-colors group">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+              <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"></path>
             </svg>
-            <span className="font-medium text-[14px]">Results</span>
+            <span className="font-medium text-[14px]">Account</span>
           </a>
         </nav>
 
@@ -247,7 +246,7 @@ const App = () => {
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 border border-[#1E293B]"></div>
             <div className="flex flex-col">
               <span className="text-white text-[13px] font-bold">AlexP</span>
-              <span className="text-[#00C37B] text-[11px] font-mono">£2,450.50</span>
+              <span className="text-[#00C37B] text-[11px] font-mono">2,450.50 CR</span>
             </div>
           </div>
         </div>
@@ -297,7 +296,7 @@ const App = () => {
               <span className="text-[#334155] font-bold">·</span>
               <span>Good to Soft</span>
               <span className="text-[#334155] font-bold">·</span>
-              <span>Prize Fund: £250,000</span>
+              <span>Prize Fund: 250,000 CR</span>
               <span className="text-[#334155] font-bold">·</span>
               <span>12 Runners</span>
             </div>
@@ -489,7 +488,7 @@ const App = () => {
 
                 <div className="bg-[#0B0E1A] border border-[#1E293B] rounded p-2 mb-3">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[#64748B] text-[11px]">Stake (£)</span>
+                    <span className="text-[#64748B] text-[11px]">Stake (CR)</span>
                     <span className="text-[#94A3B8] font-mono text-[12px]">Balance: 2,450.50</span>
                   </div>
                   <input
@@ -507,14 +506,14 @@ const App = () => {
                       onClick={() => setQuickStake(idx, amount)}
                       className="bg-[#111827] border border-[#1E293B] text-[#94A3B8] hover:text-white hover:border-[#64748B] text-[11px] py-1 rounded transition-colors"
                     >
-                      £{amount}
+                      {amount} CR
                     </button>
                   ))}
                 </div>
 
                 <div className="flex justify-between items-center pt-3 border-t border-[#1E293B]">
                   <span className="text-white text-[13px]">To Return:</span>
-                  <span className="text-[#00C37B] font-mono font-bold text-[16px]">£{returns}</span>
+                  <span className="text-[#00C37B] font-mono font-bold text-[16px]">{returns} CR</span>
                 </div>
               </div>
             );
@@ -524,18 +523,18 @@ const App = () => {
         <div className="p-4 bg-[#111827] border-t border-[#1E293B]">
           <div className="flex justify-between items-center mb-4 text-[13px]">
             <span className="text-[#94A3B8]">Total Stake:</span>
-            <span className="text-white font-mono font-bold">£{totalStake.toFixed(2)}</span>
+            <span className="text-white font-mono font-bold">{totalStake.toFixed(2)} CR</span>
           </div>
           <div className="flex justify-between items-center mb-4 text-[13px]">
             <span className="text-[#94A3B8]">Est. Returns:</span>
-            <span className="text-[#00C37B] font-mono font-bold">£{totalReturn.toFixed(2)}</span>
+            <span className="text-[#00C37B] font-mono font-bold">{totalReturn.toFixed(2)} CR</span>
           </div>
           <button
             className="w-full bg-[#00C37B] hover:bg-[#00a86b] text-black font-extrabold text-[15px] py-3.5 rounded-lg uppercase tracking-wide transition-all"
             style={{ boxShadow: '0 4px 12px rgba(0,195,123,0.2)' }}
             onClick={() => {
               if (betSlipItems.length > 0) {
-                alert(`Bet placed! Total stake: £${totalStake.toFixed(2)} · Est. returns: £${totalReturn.toFixed(2)}`);
+                alert(`Bet placed! Total stake: ${totalStake.toFixed(2)} CR · Est. returns: ${totalReturn.toFixed(2)} CR`);
                 setBetSlipItems([]);
               }
             }}

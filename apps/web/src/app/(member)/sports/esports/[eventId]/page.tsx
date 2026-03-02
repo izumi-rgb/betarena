@@ -146,55 +146,6 @@ function MatchCard({ event, onPick, picks, eventId }: { event: EsportsEvent; onP
 
   const marketByType = new Map(event.markets.map((m) => [m.type || m.name.toLowerCase().replace(/\s+/g, '_'), m]));
 
-  const defaultSelections: Record<string, MarketSelection[]> = {
-    match_winner: [
-      { id: 'mw_home', name: event.homeTeam.name, odds: 1.72 },
-      { id: 'mw_away', name: event.awayTeam.name, odds: 2.08 },
-    ],
-    map_handicap: [
-      { id: 'mh_h', name: `${event.homeTeam.name} -1.5`, odds: 2.40 },
-      { id: 'mh_a', name: `${event.awayTeam.name} +1.5`, odds: 1.58 },
-      { id: 'mh_h2', name: `${event.homeTeam.name} +1.5`, odds: 1.52 },
-      { id: 'mh_a2', name: `${event.awayTeam.name} -1.5`, odds: 2.55 },
-    ],
-    total_maps: [
-      { id: 'tm_o', name: 'Over 2.5', odds: 1.95 },
-      { id: 'tm_u', name: 'Under 2.5', odds: 1.85 },
-    ],
-    first_map_winner: [
-      { id: 'm1_h', name: event.homeTeam.name, odds: 1.81 },
-      { id: 'm1_a', name: event.awayTeam.name, odds: 1.99 },
-    ],
-    map2_winner: [
-      { id: 'm2_h', name: event.homeTeam.name, odds: 1.84 },
-      { id: 'm2_a', name: event.awayTeam.name, odds: 1.96 },
-    ],
-    map3_winner: [
-      { id: 'm3_h', name: event.homeTeam.name, odds: 1.88 },
-      { id: 'm3_a', name: event.awayTeam.name, odds: 1.92 },
-    ],
-    first_blood: [
-      { id: 'fb_h', name: event.homeTeam.name, odds: 1.90 },
-      { id: 'fb_a', name: event.awayTeam.name, odds: 1.90 },
-    ],
-    first_to_5_rounds: [
-      { id: 'r5_h', name: event.homeTeam.name, odds: 1.87 },
-      { id: 'r5_a', name: event.awayTeam.name, odds: 1.93 },
-    ],
-    correct_map_score: [
-      { id: 'cms_20', name: `${event.homeTeam.name} 2-0`, odds: 3.20 },
-      { id: 'cms_21', name: `${event.homeTeam.name} 2-1`, odds: 3.55 },
-      { id: 'cms_02', name: `${event.awayTeam.name} 0-2`, odds: 3.45 },
-      { id: 'cms_12', name: `${event.awayTeam.name} 1-2`, odds: 3.30 },
-    ],
-    tournament_outright: [
-      { id: 'to_h', name: event.homeTeam.name, odds: 4.80 },
-      { id: 'to_a', name: event.awayTeam.name, odds: 5.20 },
-      { id: 'to_c', name: 'Team C', odds: 6.00 },
-      { id: 'to_d', name: 'Team D', odds: 7.40 },
-    ],
-  };
-
   return (
     <div className="space-y-4">
       <section className="rounded-xl border border-[#1E293B] bg-[#1A2235] p-5">
@@ -227,7 +178,10 @@ function MatchCard({ event, onPick, picks, eventId }: { event: EsportsEvent; onP
 
       {marketGroups.map((g) => {
         const m = marketByType.get(g.key);
-        const selections = m?.selections?.length ? m.selections : defaultSelections[g.key] ?? [];
+        const selections = m?.selections ?? [];
+
+        if (!selections.length) return null;
+
         return (
           <MarketAccordion key={g.key} title={g.title}>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3">

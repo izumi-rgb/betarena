@@ -77,3 +77,21 @@ export async function getOddsForSport(sport: string): Promise<unknown> {
     },
   );
 }
+
+/**
+ * Fetch upcoming odds across ALL sports in a single call.
+ * h2h only to minimise credit burn.  Cached for 30 min.
+ */
+export async function getUpcomingOdds(): Promise<unknown[]> {
+  return getCachedOrFetch(
+    `${PROVIDER}:upcoming-odds`,
+    30 * 60,
+    async () => {
+      const data = await fetchFromApi<unknown[]>('/sports/upcoming/odds', {
+        regions: 'eu,uk,us',
+        markets: 'h2h',
+      });
+      return data ?? [];
+    },
+  ) as Promise<unknown[]>;
+}

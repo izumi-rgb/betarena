@@ -1,7 +1,5 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import MobileVariantScreen from '@variant-exports/variant_mobile';
-
-export default function Page() {
-  return <MobileVariantScreen />;
+export default function MobilePreviewPage() {
+  redirect('/sports');
 }

@@ -1,19 +1,11 @@
 # ══════════════════════════════════════════════════════════════
 # Dev-only overrides (auto-merged by `docker compose up`)
-# - Remap Postgres to 5433 and Redis to 6380 so they don't
-#   clash with any local instances on default ports.
-# - Disable api/web containers — devs run those locally.
+# - Keep API/Web containers disabled; run them locally with npm.
+# - DB/Redis host ports are defined in docker-compose.yml using
+#   POSTGRES_HOST_PORT/REDIS_HOST_PORT (defaults: 5433/6380).
 # ══════════════════════════════════════════════════════════════
 
 services:
-  postgres:
-    ports:
-      - '5433:5432'
-
-  redis:
-    ports:
-      - '6380:6379'
-
   api:
     profiles:
       - production

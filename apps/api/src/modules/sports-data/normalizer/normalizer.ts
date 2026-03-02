@@ -211,48 +211,82 @@ export function normalizeOddsMarkets(raw: unknown, _source: string): Market[] {
   if (!raw || typeof raw !== 'object') return [];
 
   const r = raw as Record<string, unknown>;
+  const homeTeam = str(r.home_team);
+  const awayTeam = str(r.away_team);
   const bookmakers = r.bookmakers as unknown[] | undefined;
-  if (!Array.isArray(bookmakers)) return [];
+  if (!Array.isArray(bookmakers) || bookmakers.length === 0) return [];
 
-  const marketsMap = new Map<string, Market>();
+  const MARKET_LABELS: Record<string, string> = {
+    h2h: 'Match Result',
+    spreads: 'Spread',
+    totals: 'Over/Under',
+  };
+
+  // Collect all prices per market+outcome across bookmakers, then average
+  const collector = new Map<string, Map<string, number[]>>();
 
   for (const bm of bookmakers) {
     const b = bm as Record<string, unknown>;
-    const bookmakerName = str(get(b, 'title') || get(b, 'key'));
     const bmMarkets = b.markets as unknown[] | undefined;
     if (!Array.isArray(bmMarkets)) continue;
 
     for (const m of bmMarkets) {
       const market = m as Record<string, unknown>;
       const marketKey = str(market.key);
-      const marketName = str(market.key)
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-
-      if (!marketsMap.has(marketKey)) {
-        marketsMap.set(marketKey, {
-          id: marketKey,
-          name: marketName,
-          selections: [],
-        });
-      }
+      if (!collector.has(marketKey)) collector.set(marketKey, new Map());
+      const outcomeMap = collector.get(marketKey)!;
 
       const outcomes = market.outcomes as unknown[] | undefined;
       if (!Array.isArray(outcomes)) continue;
 
       for (const o of outcomes) {
         const outcome = o as Record<string, unknown>;
-        const existing = marketsMap.get(marketKey)!;
-        existing.selections.push({
-          id: `${marketKey}-${str(outcome.name)}-${bookmakerName}`,
-          name: str(outcome.name),
-          odds: num(outcome.price, 1),
-          bookmaker: bookmakerName,
-          suspended: false,
-        });
+        const outcomeName = str(outcome.name);
+        if (!outcomeMap.has(outcomeName)) outcomeMap.set(outcomeName, []);
+        const price = num(outcome.price, 0);
+        if (price > 0) outcomeMap.get(outcomeName)!.push(price);
       }
     }
   }
 
-  return Array.from(marketsMap.values());
+  const markets: Market[] = [];
+
+  for (const [marketKey, outcomeMap] of collector) {
+    const selections: Selection[] = [];
+
+    for (const [outcomeName, prices] of outcomeMap) {
+      if (prices.length === 0) continue;
+      const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+      const rounded = Math.round(avg * 100) / 100;
+
+      let displayName = outcomeName;
+      if (marketKey === 'h2h') {
+        if (outcomeName === homeTeam) displayName = 'Home';
+        else if (outcomeName === awayTeam) displayName = 'Away';
+        else if (outcomeName.toLowerCase() === 'draw') displayName = 'Draw';
+      }
+
+      selections.push({
+        id: `${marketKey}-${outcomeName}`,
+        name: displayName,
+        odds: rounded,
+        bookmaker: `avg(${prices.length})`,
+        suspended: false,
+      });
+    }
+
+    if (selections.length > 0) {
+      const label = MARKET_LABELS[marketKey] || marketKey
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+      markets.push({
+        id: marketKey,
+        name: label,
+        selections,
+      });
+    }
+  }
+
+  return markets;
 }

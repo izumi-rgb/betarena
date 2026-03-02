@@ -1,7 +1,5 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import HorseRacingScreen from '@variant-exports/variant_horse_racing';
-
-export default function Page() {
-  return <HorseRacingScreen />;
+export default function RacecardsPage() {
+  redirect('/sports/horse-racing');
 }
