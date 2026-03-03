@@ -17,9 +17,11 @@
     "seed": "npm run seed --workspace=apps/api",
     "start": "node apps/api/dist/index.js"
   },
+  "dependencies": {
+    "next": "14.2.35"
+  },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "next": "14.2.35",
     "typescript": "^5.7.0"
   }
 }
