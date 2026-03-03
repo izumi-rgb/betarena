@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pwd && ls && npm install && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "installCommand": "echo 'skipping root install'"
+  "installCommand": "npm install"
 }
