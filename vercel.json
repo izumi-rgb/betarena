@@ -1,5 +1,5 @@
 {
-  "buildCommand": "PATH=$(pwd)/node_modules/.bin:$PATH npm run build --workspace=web",
+  "buildCommand": "node_modules/.bin/next build apps/web",
   "outputDirectory": "apps/web/.next",
   "installCommand": "npm ci"
 }
