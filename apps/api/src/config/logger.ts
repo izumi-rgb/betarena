@@ -22,13 +22,13 @@ const logger = winston.createLogger({
   ],
 });
 
-if (env.NODE_ENV === 'production') {
-  logger.add(
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-  );
-  logger.add(
-    new winston.transports.File({ filename: 'logs/combined.log' }),
-  );
+// File transport only when running on a persistent server (not serverless)
+if (env.NODE_ENV === 'production' && process.env.ENABLE_FILE_LOGGING === 'true') {
+  const fs = require('fs');
+  const logDir = process.env.LOG_DIR || 'logs';
+  fs.mkdirSync(logDir, { recursive: true });
+  logger.add(new winston.transports.File({ filename: `${logDir}/error.log`, level: 'error' }));
+  logger.add(new winston.transports.File({ filename: `${logDir}/combined.log` }));
 }
 
 export default logger;

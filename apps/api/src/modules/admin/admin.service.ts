@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import db from '../../config/database';
 import { writeSystemLog } from '../../utils/systemLog';
 import { generatePassword } from '../../utils/generateCredentials';
