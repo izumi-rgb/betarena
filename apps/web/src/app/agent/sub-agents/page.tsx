@@ -131,7 +131,7 @@ export default function SubAgentHierarchyPage() {
               style={{ height: `calc(100% - 1.5rem)` }}
             />
 
-            {subAgents.map((sa, idx) => (
+            {subAgents.map((sa) => (
               <div key={sa.id} className="relative mt-4">
                 {/* Horizontal connector */}
                 <div className="absolute left-[-20px] top-6 h-px w-5 bg-[#1E293B]" />

@@ -13,9 +13,7 @@ type MemberRow = {
   open_bets?: number;
 };
 type TxRow = { id: number; amount: number | string; type: string; created_at?: string };
-type BetRow = { id: number; amount: number | string; potential_win?: number | string; status?: string; sport?: string };
 type TransactionsEnvelope = { transactions: TxRow[] };
-type BetsEnvelope = { bets: BetRow[] };
 
 function parseAmount(value: number | string | undefined): number {
   const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? 0));

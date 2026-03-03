@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useCallback } from 'react';
 import { useBalance } from '@/hooks/useBalance';
-import { apiPost, apiGet, type ApiResponse } from '@/lib/api';
+import { apiPost, apiGet } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
 interface BetSelection {
@@ -84,9 +84,9 @@ export function CreditsProvider({ children }: { children: React.ReactNode }) {
         });
         void refetch();
         return { success: true, message: res.message || 'Bet placed!', data: res.data };
-      } catch (err: any) {
-        const msg =
-          err?.response?.data?.message || err?.message || 'Failed to place bet';
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } }; message?: string };
+        const msg = e?.response?.data?.message || e?.message || 'Failed to place bet';
         return { success: false, message: msg };
       }
     },

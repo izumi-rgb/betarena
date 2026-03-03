@@ -277,7 +277,7 @@ export default function EsportsMatchPage() {
   const eventId = params?.eventId ?? '';
   const [event, setEvent] = useState<EsportsEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [picks, setPicks] = useState<BetPick[]>([]);
   const sharedPicks = useBetSlipStore((s) => s.picks);
   const toggleSharedPick = useBetSlipStore((s) => s.togglePick);

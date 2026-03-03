@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
-import { useAuthStore } from '@/stores/authStore';
 import Link from 'next/link';
 
 /* ── Types ─────────────────────────────────────────────────── */
@@ -172,7 +171,6 @@ function CreateMemberModal({
 
 /* ── Page ──────────────────────────────────────────────────── */
 export default function AgentDashboardPage() {
-  const user = useAuthStore((s) => s.user);
   const [showModal, setShowModal] = useState(false);
 
   /* ── Queries ── */
@@ -181,7 +179,7 @@ export default function AgentDashboardPage() {
     queryFn: () => apiGet<MemberRow[]>('/api/agents/members').then((r) => r.data || []),
     refetchInterval: 30_000,
   });
-  const subAgentsQuery = useQuery({
+  useQuery({
     queryKey: ['agent', 'sub-agents'],
     queryFn: () => apiGet<SubAgentRow[]>('/api/agents/sub-agents').then((r) => r.data || []),
   });
