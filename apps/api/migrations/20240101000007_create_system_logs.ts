@@ -19,13 +19,14 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.raw('CREATE INDEX idx_logs_created ON system_logs(created_at)');
   await knex.schema.raw('CREATE INDEX idx_logs_threat ON system_logs(threat_flag) WHERE threat_flag = true');
 
-  // Restrict the API role to INSERT-only on system_logs
-  // Create a restricted role for the app if it doesn't exist, then revoke UPDATE/DELETE
+  // Restrict UPDATE/DELETE on system_logs using rules (role-agnostic)
   await knex.raw(`
     DO $$
     BEGIN
-      -- Revoke UPDATE and DELETE on system_logs for the current DB user
-      REVOKE UPDATE, DELETE ON system_logs FROM betarena;
+      -- Revoke UPDATE and DELETE only if the betarena role exists
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'betarena') THEN
+        REVOKE UPDATE, DELETE ON system_logs FROM betarena;
+      END IF;
 
       -- Create a rule to prevent updates
       CREATE OR REPLACE RULE prevent_update_system_logs AS
@@ -47,7 +48,9 @@ export async function down(knex: Knex): Promise<void> {
     BEGIN
       DROP RULE IF EXISTS prevent_update_system_logs ON system_logs;
       DROP RULE IF EXISTS prevent_delete_system_logs ON system_logs;
-      GRANT UPDATE, DELETE ON system_logs TO betarena;
+      IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'betarena') THEN
+        GRANT UPDATE, DELETE ON system_logs TO betarena;
+      END IF;
     END
     $$;
   `);
