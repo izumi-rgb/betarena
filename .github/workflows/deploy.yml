@@ -1,0 +1,51 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: false
+        default: 'main'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/betarena
+
+            # Pull latest from the target branch
+            BRANCH="${{ github.event.inputs.branch || github.ref_name }}"
+            git fetch origin
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH"
+
+            # Rebuild and restart containers (no downtime for postgres/redis)
+            docker compose up -d --build --no-deps api web
+
+            # Wait for API health check
+            echo "Waiting for API to become healthy..."
+            for i in $(seq 1 30); do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' betarena-api 2>/dev/null || echo "missing")
+              if [ "$STATUS" = "healthy" ]; then
+                echo "API is healthy."
+                break
+              fi
+              echo "  [$i/30] API status: $STATUS — waiting 5s..."
+              sleep 5
+            done
+
+            # Show final state
+            docker compose ps
