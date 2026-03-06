@@ -46,7 +46,7 @@ bitarena/
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/izumi-rgb/betarena.git
+git clone https://github.com/ctr6780-ship-it/betarena.git
 cd betarena
 
 # 2. Copy env file and fill in secrets
