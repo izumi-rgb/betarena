@@ -32,7 +32,8 @@ const TIER_1_LEAGUES = new Set([
   'champions league', 'europa league',
   'nba', 'nfl', 'nhl', 'mlb',
   'atp', 'wta', 'grand slam',
-  'ipl', 'big bash', 'test cricket',
+  'ipl', 'big bash', 'test cricket', 'world cup', 'sheffield shield',
+  't20 world cup', 'odi',
 ]);
 
 const TIER_2_LEAGUES = new Set([
@@ -77,19 +78,45 @@ function getLeagueTier(event: LiveEvent): 1 | 2 | 3 {
 }
 
 export function filterAndSortEvents(events: LiveEvent[]): LiveEvent[] {
-  const hasOdds = events.filter((e) => e.markets.length > 0);
-  const noOdds  = events.filter((e) => e.markets.length === 0);
-
-  hasOdds.sort((a, b) => getLeagueTier(a) - getLeagueTier(b));
-
-  let result: LiveEvent[];
-  if (hasOdds.length >= MIN_EVENTS_TO_SHOW) {
-    result = hasOdds;
-  } else {
-    noOdds.sort((a, b) => getLeagueTier(a) - getLeagueTier(b));
-    result = [...hasOdds, ...noOdds];
+  // Ensure sport diversity: reserve up to 3 slots per sport, then fill remainder by tier
+  const bySport = new Map<string, LiveEvent[]>();
+  for (const e of events) {
+    const sport = e.sport || 'other';
+    if (!bySport.has(sport)) bySport.set(sport, []);
+    bySport.get(sport)!.push(e);
   }
 
+  // Sort each sport's events: odds first, then by tier
+  for (const [, sportEvents] of bySport) {
+    sportEvents.sort((a, b) => {
+      const aHasOdds = a.markets.length > 0 ? 0 : 1;
+      const bHasOdds = b.markets.length > 0 ? 0 : 1;
+      if (aHasOdds !== bHasOdds) return aHasOdds - bHasOdds;
+      return getLeagueTier(a) - getLeagueTier(b);
+    });
+  }
+
+  // Phase 1: take up to 3 best events per sport (guarantees diversity)
+  const reserved: LiveEvent[] = [];
+  const reservedIds = new Set<string>();
+  for (const [, sportEvents] of bySport) {
+    for (const e of sportEvents.slice(0, 3)) {
+      reserved.push(e);
+      reservedIds.add(e.id);
+    }
+  }
+
+  // Phase 2: fill remaining slots from all events sorted by odds+tier
+  const remaining = events
+    .filter((e) => !reservedIds.has(e.id))
+    .sort((a, b) => {
+      const aHasOdds = a.markets.length > 0 ? 0 : 1;
+      const bHasOdds = b.markets.length > 0 ? 0 : 1;
+      if (aHasOdds !== bHasOdds) return aHasOdds - bHasOdds;
+      return getLeagueTier(a) - getLeagueTier(b);
+    });
+
+  const result = [...reserved, ...remaining];
   return result.slice(0, MAX_EVENTS_TO_SHOW);
 }
 
