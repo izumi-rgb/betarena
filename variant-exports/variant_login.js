@@ -200,7 +200,7 @@ const InfoModal = ({ isOpen, onClose, title, message }) => {
 const LoginCard = ({ initialUsername, initialPassword }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isLoading, isAuthenticated, user } = useAuthStore();
+  const { login, logout, isLoading, isAuthenticated, user } = useAuthStore();
   const [username, setUsername] = useState(initialUsername || '');
   const [password, setPassword] = useState(initialPassword || '');
   const [showPassword, setShowPassword] = useState(false);
@@ -217,6 +217,7 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMsg, setModalMsg] = useState('');
+  const [freshLogin, setFreshLogin] = useState(false);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -233,23 +234,42 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
     return () => document.head.removeChild(style);
   }, []);
 
+  // Clear any stale session so the user can log in fresh
   useEffect(() => {
-    if (!isAuthenticated || !user?.role) return;
+    if (isAuthenticated) {
+      logout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Redirect only after a fresh login from this page
+  useEffect(() => {
+    if (!freshLogin || !isAuthenticated || !user?.role) return;
+
+    const roleHome = user.role === 'admin'
+      ? '/admin/overview'
+      : (user.role === 'agent' || user.role === 'sub_agent')
+        ? '/agent/dashboard'
+        : '/sports';
+
     const next = searchParams?.get('next');
+    // Only follow ?next= if it matches the user's role area
     if (next) {
-      router.replace(next);
+      const isAdminRoute = next.startsWith('/admin');
+      const isAgentRoute = next.startsWith('/agent');
+      const isMemberRoute = !isAdminRoute && !isAgentRoute;
+
+      const allowed =
+        (user.role === 'admin' && isAdminRoute) ||
+        ((user.role === 'agent' || user.role === 'sub_agent') && isAgentRoute) ||
+        (user.role === 'member' && isMemberRoute);
+
+      router.replace(allowed ? next : roleHome);
       return;
     }
-    if (user.role === 'admin') {
-      router.replace('/admin/overview');
-      return;
-    }
-    if (user.role === 'agent' || user.role === 'sub_agent') {
-      router.replace('/agent/dashboard');
-      return;
-    }
-    router.replace('/sports');
-  }, [isAuthenticated, user, router, searchParams]);
+
+    router.replace(roleHome);
+  }, [freshLogin, isAuthenticated, user, router, searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -264,6 +284,7 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
     try {
       await login(username, password);
       setHasError(false);
+      setFreshLogin(true);
     } catch (err) {
       const apiMessage = err?.response?.data?.message;
       setHasError(true);

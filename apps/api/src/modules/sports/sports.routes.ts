@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { listSports, listEventsBySport, getEventMarkets, getLiveEvents, listCompetitionEvents } from './sports.service';
+import { listSports, listEventsBySport, getEventMarkets, getLiveEvents, listCompetitionEvents, getSportCounts } from './sports.service';
 
 const router = Router();
 
@@ -7,6 +7,17 @@ router.get('/', async (_req: Request, res: Response) => {
   try {
     const sports = await listSports();
     res.json({ success: true, data: sports, message: 'Sports listed', error: null });
+  } catch (err) {
+    res.status(500).json({
+      success: false, data: null, message: 'Failed', error: (err as Error).message,
+    });
+  }
+});
+
+router.get('/counts', async (_req: Request, res: Response) => {
+  try {
+    const counts = await getSportCounts();
+    res.json({ success: true, data: counts, message: 'Sport counts', error: null });
   } catch (err) {
     res.status(500).json({
       success: false, data: null, message: 'Failed', error: (err as Error).message,

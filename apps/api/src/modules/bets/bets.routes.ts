@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireRole } from '../../middleware/rbac.middleware';
-import { placeBet, getUserBets, cashoutBet, partialCashoutBet } from './bets.service';
+import { placeBet, getUserBets, getUserBetStats, cashoutBet, partialCashoutBet } from './bets.service';
 import { validateBetInput } from './bets.validator';
 
 const router = Router();
@@ -50,6 +50,15 @@ router.get('/my-bets', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string, 10) || 50;
     const result = await getUserBets(req.user!.id, status, page, limit);
     res.json({ success: true, data: result, message: 'Bets retrieved', error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, message: 'Failed', error: (err as Error).message });
+  }
+});
+
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await getUserBetStats(req.user!.id);
+    res.json({ success: true, data: stats, message: 'Stats retrieved', error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, message: 'Failed', error: (err as Error).message });
   }

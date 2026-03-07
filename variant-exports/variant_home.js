@@ -451,6 +451,7 @@ const App = () => {
   const [favorites, setFavorites] = useState({});
   const [slipSelections, setSlipSelections] = useState([]);
   const [liveApiEvents, setLiveApiEvents] = useState(null);
+  const [sportCounts, setSportCounts] = useState({});
   const navigate = useNavigate();
   const { balance, isLoading: balanceLoading, formatBalance, placeBet: apiPlaceBet, isAuthenticated } = useCredits();
 
@@ -477,6 +478,11 @@ const App = () => {
     };
     fetchLive();
     const interval = setInterval(fetchLive, 30000);
+
+    apiGet('/api/sports/counts').then(res => {
+      if (!cancelled && res.success && res.data) setSportCounts(res.data);
+    }).catch(() => {});
+
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
@@ -582,11 +588,11 @@ const App = () => {
   ];
 
   const filterSportName = (f) => f.replace(/\s*\(.*\)/, '');
-  const sportCounts = {};
+  const filterCounts = {};
   [...liveMatches, ...upcomingMatches].forEach(m => {
-    if (m.sport) sportCounts[m.sport] = (sportCounts[m.sport] || 0) + 1;
+    if (m.sport) filterCounts[m.sport] = (filterCounts[m.sport] || 0) + 1;
   });
-  const filters = ['All Sports', ...Object.entries(sportCounts).map(([s, c]) => `${s} (${c})`)];
+  const filters = ['All Sports', ...Object.entries(filterCounts).map(([s, c]) => `${s} (${c})`)];
 
   const filteredLive = useMemo(() => {
     const sport = filterSportName(activeFilter);
@@ -834,7 +840,7 @@ const App = () => {
             <div style={{ color: '#64748B', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '12px', paddingLeft: '8px' }}>
               All Sports
             </div>
-            <NavLink onClick={() => { setActiveSideNav('Football'); navigate('/sports/football'); }} active={activeSideNav === 'Football'} badge="1,024">
+            <NavLink onClick={() => { setActiveSideNav('Football'); navigate('/sports/football'); }} active={activeSideNav === 'Football'} badge={sportCounts.football != null ? String(sportCounts.football) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
@@ -873,25 +879,25 @@ const App = () => {
               })}
             </div>
 
-            <NavLink onClick={() => { setActiveSideNav('Tennis'); navigate('/sports/tennis'); }} active={activeSideNav === 'Tennis'} badge="86">
+            <NavLink onClick={() => { setActiveSideNav('Tennis'); navigate('/sports/tennis'); }} active={activeSideNav === 'Tennis'} badge={sportCounts.tennis != null ? String(sportCounts.tennis) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.05-1.09.13-1.62L9 15.24V16c0 .55.45 1 1 1h2v-1.12l5.08 2.6c-1.39 1.01-3.13 1.52-5.08 1.52z" />
               </svg>
               Tennis
             </NavLink>
-            <NavLink onClick={() => { setActiveSideNav('Basketball'); navigate('/sports/basketball'); }} active={activeSideNav === 'Basketball'} badge="45">
+            <NavLink onClick={() => { setActiveSideNav('Basketball'); navigate('/sports/basketball'); }} active={activeSideNav === 'Basketball'} badge={sportCounts.basketball != null ? String(sportCounts.basketball) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
               </svg>
               Basketball
             </NavLink>
-            <NavLink onClick={() => { setActiveSideNav('Golf'); navigate('/sports/golf'); }} active={activeSideNav === 'Golf'} badge="24">
+            <NavLink onClick={() => { setActiveSideNav('Golf'); navigate('/sports/golf'); }} active={activeSideNav === 'Golf'} badge={sportCounts.golf != null ? String(sportCounts.golf) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 3v18h2v-6h8l-3-4 3-4H8V3z" />
               </svg>
               Golf
             </NavLink>
-            <NavLink onClick={() => { setActiveSideNav('Esports'); navigate('/sports/esports'); }} active={activeSideNav === 'Esports'} badge="23">
+            <NavLink onClick={() => { setActiveSideNav('Esports'); navigate('/sports/esports'); }} active={activeSideNav === 'Esports'} badge={sportCounts.esports != null ? String(sportCounts.esports) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3 6h18v12H3V6zm3 2v8h12V8H6zm2 2h2v2H8v-2zm6 0h2v2h-2v-2z" />
               </svg>

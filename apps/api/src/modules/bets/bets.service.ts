@@ -239,6 +239,45 @@ export async function placeBet(params: PlaceBetParams) {
   };
 }
 
+export async function getUserBetStats(userId: number) {
+  const row = await db('bets')
+    .where({ user_id: userId })
+    .select(
+      db.raw('COUNT(*)::int AS total_bets'),
+      db.raw("COUNT(*) FILTER (WHERE status = 'won')::int AS won"),
+      db.raw("COUNT(*) FILTER (WHERE status = 'lost')::int AS lost"),
+      db.raw("COUNT(*) FILTER (WHERE status = 'open')::int AS open"),
+      db.raw('COALESCE(MAX(actual_win), 0)::numeric AS biggest_win'),
+      db.raw("COALESCE(SUM(CASE WHEN status = 'won' THEN actual_win ELSE 0 END) - SUM(CASE WHEN status IN ('lost','cashout') THEN stake ELSE 0 END), 0)::numeric AS total_pnl"),
+    )
+    .first();
+
+  const totalBets = row?.total_bets || 0;
+  const won = row?.won || 0;
+  const winRate = totalBets > 0 ? +((won / totalBets) * 100).toFixed(1) : 0;
+
+  const dailyRows = await db('bets')
+    .where({ user_id: userId })
+    .whereRaw("created_at >= NOW() - INTERVAL '7 days'")
+    .select(
+      db.raw('DATE(created_at) AS day'),
+      db.raw("COALESCE(SUM(CASE WHEN status = 'won' THEN actual_win ELSE 0 END) - SUM(CASE WHEN status IN ('lost','cashout') THEN stake ELSE 0 END), 0)::numeric AS pnl"),
+    )
+    .groupByRaw('DATE(created_at)')
+    .orderBy('day');
+
+  return {
+    totalBets,
+    won,
+    lost: row?.lost || 0,
+    open: row?.open || 0,
+    winRate,
+    biggestWin: +Number(row?.biggest_win || 0).toFixed(2),
+    totalPnl: +Number(row?.total_pnl || 0).toFixed(2),
+    dailyPnl: dailyRows.map((r: any) => ({ day: r.day, pnl: +Number(r.pnl).toFixed(2) })),
+  };
+}
+
 export async function getUserBets(userId: number, status?: string, page: number = 1, limit: number = 50) {
   let query = db('bets').where({ user_id: userId });
   if (status) query = query.where({ status });

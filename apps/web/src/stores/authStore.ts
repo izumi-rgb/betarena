@@ -31,10 +31,7 @@ interface AuthActions {
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   user: null,
-  accessToken:
-    typeof window !== "undefined"
-      ? localStorage.getItem("accessToken")
-      : null,
+  accessToken: null,
   isLoading: false,
   isHydrating: false,
   isAuthenticated: false,
@@ -42,10 +39,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   setUser: (user) => set({ user, isAuthenticated: !!user }),
 
   setToken: (token) => {
-    if (typeof window !== "undefined") {
-      if (token) localStorage.setItem("accessToken", token);
-      else localStorage.removeItem("accessToken");
-    }
     set({ accessToken: token });
   },
 
@@ -127,22 +120,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
     set({ isHydrating: true });
     try {
-      const token =
-        get().accessToken
-        || (typeof window !== "undefined" ? localStorage.getItem("accessToken") : null);
-
-      if (!token) {
-        set({ user: null, isAuthenticated: false });
-        return;
-      }
-
-      get().setToken(token);
-
+      // Try fetching /me using HttpOnly cookie auth
       const meLoaded = await get().fetchMe({ silent: true });
       if (meLoaded) {
         return;
       }
 
+      // Cookie-based access token expired — try refresh
       const refreshed = await get().refreshToken();
       if (!refreshed) {
         get().setToken(null);

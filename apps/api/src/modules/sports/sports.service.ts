@@ -99,6 +99,19 @@ export async function listSports(): Promise<{ name: string; slug: string; events
   return list;
 }
 
+export async function getSportCounts(): Promise<Record<string, number>> {
+  const rows = await db('events')
+    .select('sport')
+    .whereIn('status', ['upcoming', 'live'])
+    .count('id as count')
+    .groupBy('sport');
+  const counts: Record<string, number> = {};
+  for (const r of rows as any[]) {
+    counts[sportToSlug(r.sport)] = parseInt(r.count, 10) || 0;
+  }
+  return counts;
+}
+
 export async function listEventsBySport(sportOrSlug: string) {
   const slug = sportOrSlug.toLowerCase().replace(/\s+/g, '-');
   const distinct = await db('events').distinct('sport');

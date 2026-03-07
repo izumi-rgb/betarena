@@ -216,13 +216,19 @@ export async function refreshAccessToken(
 
 export async function getMe(userId: number) {
   const user = await db('users')
-    .select('id', 'display_id', 'username', 'role', 'is_active', 'can_create_sub_agent', 'created_at')
+    .select('id', 'display_id', 'username', 'role', 'is_active', 'can_create_sub_agent', 'parent_agent_id', 'created_at')
     .where({ id: userId })
     .first();
 
   if (!user) throw new Error('USER_NOT_FOUND');
 
   const account = await db('credit_accounts').where({ user_id: userId }).first();
+
+  let agentName: string | null = null;
+  if (user.parent_agent_id) {
+    const agent = await db('users').select('username').where({ id: user.parent_agent_id }).first();
+    agentName = agent?.username || null;
+  }
 
   const rawPrefs = await redis.get(`prefs:${userId}`);
   const preferences = rawPrefs
@@ -238,6 +244,7 @@ export async function getMe(userId: number) {
   return {
     ...user,
     balance: account?.balance || '0.00',
+    agentName,
     preferences,
   };
 }

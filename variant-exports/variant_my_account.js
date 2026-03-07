@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useCredits } from '@/contexts/CreditsContext';
+import { useAuthStore } from '@/stores/authStore';
+import { apiGet } from '@/lib/api';
 
 const customStyles = {
   cardGlowGreen: {
@@ -39,7 +41,15 @@ const customStyles = {
   },
 };
 
-const Sidebar = ({ balance }) => {
+function getInitials(name) {
+  if (!name) return '??';
+  const parts = name.split(/[\s_]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+const Sidebar = ({ balance, username }) => {
+  const initials = getInitials(username);
   const { pathname } = useLocation();
   return (
     <aside className="w-[240px] bg-[#111827] border-r border-[#1E293B] flex flex-col shrink-0 z-20">
@@ -101,9 +111,9 @@ const Sidebar = ({ balance }) => {
 
       <div className="p-4 border-t border-[#1E293B]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#00C37B] border border-[#1E293B] flex items-center justify-center text-[#0B0E1A] font-bold text-sm">JK</div>
+          <div className="w-9 h-9 rounded-full bg-[#00C37B] border border-[#1E293B] flex items-center justify-center text-[#0B0E1A] font-bold text-sm">{initials}</div>
           <div className="flex flex-col">
-            <span className="text-white text-[13px] font-bold">John K.</span>
+            <span className="text-white text-[13px] font-bold">{username || '...'}</span>
             <span className="text-[#00C37B] text-[11px] font-mono">{balance !== undefined ? `${balance.toFixed(2)} CR` : '...'}</span>
           </div>
         </div>
@@ -149,8 +159,15 @@ const CreditBalanceCard = ({ balance = 0, isLoading = false }) => {
   );
 };
 
-const TotalBetsCard = () => {
+const TotalBetsCard = ({ totalBets = 0, won = 0, lost = 0, open = 0, winRate = 0, biggestWin = 0, isLoading = false }) => {
   const [hovered, setHovered] = useState(false);
+  const total = totalBets || 1; // avoid division by zero for bar widths
+  const wonPct = totalBets > 0 ? ((won / total) * 100).toFixed(0) : 0;
+  const lostPct = totalBets > 0 ? ((lost / total) * 100).toFixed(0) : 0;
+  const openPct = totalBets > 0 ? ((open / total) * 100).toFixed(0) : 0;
+  const circumference = 251.2;
+  const dashOffset = circumference - (circumference * (winRate / 100));
+  const fmt = (v) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
   return (
     <div
       className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-6 transition-all relative overflow-hidden group"
@@ -169,12 +186,12 @@ const TotalBetsCard = () => {
         </div>
       </div>
 
-      <div className="font-mono text-[32px] font-bold text-white leading-none mb-4">47</div>
+      <div className="font-mono text-[32px] font-bold text-white leading-none mb-4">{isLoading ? '...' : totalBets}</div>
 
       <div className="flex h-2 w-full rounded-full overflow-hidden mb-6">
-        <div className="h-full bg-[#00C37B]" style={{ width: '60%' }} title="Won 28"></div>
-        <div className="h-full bg-[#EF4444]" style={{ width: '34%' }} title="Lost 16"></div>
-        <div className="h-full bg-[#F59E0B]" style={{ width: '6%' }} title="Open 3"></div>
+        <div className="h-full bg-[#00C37B]" style={{ width: `${wonPct}%` }} title={`Won ${won}`}></div>
+        <div className="h-full bg-[#EF4444]" style={{ width: `${lostPct}%` }} title={`Lost ${lost}`}></div>
+        <div className="h-full bg-[#F59E0B]" style={{ width: `${openPct}%` }} title={`Open ${open}`}></div>
       </div>
 
       <div className="flex justify-center mb-6">
@@ -188,37 +205,49 @@ const TotalBetsCard = () => {
               r="40"
               strokeWidth="8"
               fill="transparent"
-              strokeDasharray="251.2"
-              strokeDashoffset="100.48"
+              strokeDasharray={String(circumference)}
+              strokeDashoffset={String(dashOffset)}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-[9px] text-[#94A3B8] uppercase font-bold">Win Rate</span>
-            <span className="text-[14px] text-white font-bold">59.6%</span>
+            <span className="text-[14px] text-white font-bold">{isLoading ? '...' : `${winRate}%`}</span>
           </div>
         </div>
       </div>
 
       <div className="flex justify-between items-center pt-4 border-t border-[#1E293B]">
         <span className="text-[#94A3B8] text-[13px]">Biggest Win</span>
-        <span className="text-[#00C37B] font-mono font-bold">+125.00 CR</span>
+        <span className="text-[#00C37B] font-mono font-bold">{isLoading ? '...' : `+${fmt(biggestWin)} CR`}</span>
       </div>
     </div>
   );
 };
 
-const PLCard = () => {
+const PLCard = ({ totalPnl = 0, dailyPnl = [], isLoading = false }) => {
   const [hovered, setHovered] = useState(false);
-  const bars = [
-    { color: '#00C37B', height: '40%', label: '+20' },
-    { color: '#EF4444', height: '25%', label: '-15' },
-    { color: '#00C37B', height: '60%', label: '+45' },
-    { color: '#00C37B', height: '30%', label: '+10' },
-    { color: '#EF4444', height: '20%', label: '-10' },
-    { color: '#00C37B', height: '85%', label: '+125' },
-    { color: '#EF4444', height: '45%', label: '-35' },
-  ];
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const fmt = (v) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
+  const pnlColor = totalPnl >= 0 ? '#00C37B' : '#EF4444';
+  const pnlSign = totalPnl >= 0 ? '+' : '-';
+
+  // Build 7-day bar chart from dailyPnl
+  const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const now = new Date();
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const match = dailyPnl.find((r) => r.day && r.day.slice(0, 10) === key);
+    last7.push({ pnl: match ? match.pnl : 0, label: dayLabels[d.getDay() === 0 ? 6 : d.getDay() - 1] });
+  }
+  const maxAbs = Math.max(...last7.map((d) => Math.abs(d.pnl)), 1);
+  const bars = last7.map((d) => ({
+    color: d.pnl >= 0 ? '#00C37B' : '#EF4444',
+    height: `${Math.max(5, (Math.abs(d.pnl) / maxAbs) * 100)}%`,
+    label: d.pnl >= 0 ? `+${d.pnl}` : String(d.pnl),
+    day: d.label,
+  }));
 
   return (
     <div
@@ -239,8 +268,8 @@ const PLCard = () => {
       </div>
 
       <div className="mb-8">
-        <div className="font-mono text-[32px] font-bold text-[#00C37B] leading-none">
-          +125.50 <span className="text-[16px] text-[#00C37B] opacity-60">CR</span>
+        <div className="font-mono text-[32px] font-bold leading-none" style={{ color: pnlColor }}>
+          {isLoading ? '...' : `${pnlSign}${fmt(totalPnl)}`} <span className="text-[16px] opacity-60" style={{ color: pnlColor }}>CR</span>
         </div>
         <div className="text-[12px] text-[#94A3B8] mt-1">Last 7 Days</div>
       </div>
@@ -255,8 +284,8 @@ const PLCard = () => {
         ))}
       </div>
       <div className="flex justify-between text-[10px] text-[#64748B] font-mono border-t border-[#1E293B] pt-2">
-        {days.map((d, i) => (
-          <span key={i}>{d}</span>
+        {bars.map((b, i) => (
+          <span key={i}>{b.day}</span>
         ))}
       </div>
     </div>
@@ -314,17 +343,32 @@ const TransactionRow = ({ iconBg, iconColor, icon, title, subtitle, amount, amou
 
 const MyAccountPage = () => {
   const { balance, isLoading: balanceLoading, formatBalance, fetchTransactions, isAuthenticated } = useCredits();
+  const user = useAuthStore((s) => s.user);
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
+  const [betStats, setBetStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [meData, setMeData] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated) { setTxLoading(false); return; }
+    if (!isAuthenticated) { setTxLoading(false); setStatsLoading(false); return; }
     let cancelled = false;
     fetchTransactions(1, 5).then(data => {
       if (!cancelled) { setTransactions(data.transactions || []); setTxLoading(false); }
     });
+    apiGet('/api/bets/stats').then(res => {
+      if (!cancelled) { setBetStats(res.data); setStatsLoading(false); }
+    }).catch(() => { if (!cancelled) setStatsLoading(false); });
+    apiGet('/api/auth/me').then(res => {
+      if (!cancelled) setMeData(res.data);
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, [fetchTransactions, isAuthenticated]);
+
+  const initials = getInitials(user?.username);
+  const memberSince = meData?.created_at
+    ? new Date(meData.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '...';
 
   const navTabsWithHref = [
     { label: 'Home', href: '/sports' },
@@ -395,7 +439,7 @@ const MyAccountPage = () => {
               <div
                 className="w-24 h-24 rounded-full bg-[#00C37B] flex items-center justify-center text-[#0B0E1A] text-[32px] font-bold border-4 border-[#1A2235]"
                 style={{ boxShadow: '0 0 0 2px #00C37B' }}
-              >JK</div>
+              >{initials}</div>
               <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#00C37B] rounded-full border-2 border-[#1A2235] flex items-center justify-center">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B0E1A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
@@ -405,9 +449,9 @@ const MyAccountPage = () => {
 
             <div className="flex-1 text-center md:text-left">
               <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                <h2 className="text-[24px] font-bold text-white">John K.</h2>
+                <h2 className="text-[24px] font-bold text-white">{user?.username || '...'}</h2>
                 <span className="bg-[rgba(0,195,123,0.1)] text-[#00C37B] border border-[rgba(0,195,123,0.2)] text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                  Member ID: 20_1
+                  Member ID: {user?.display_id || '...'}
                 </span>
               </div>
               <div className="text-[#94A3B8] text-[14px] flex flex-col md:flex-row gap-4 mb-1">
@@ -416,7 +460,7 @@ const MyAccountPage = () => {
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
-                  Agent: <span className="text-white">Agent_20</span>
+                  Agent: <span className="text-white">{meData?.agentName || '—'}</span>
                 </span>
                 <span className="hidden md:inline text-[#334155]">|</span>
                 <span className="flex items-center gap-2">
@@ -426,12 +470,12 @@ const MyAccountPage = () => {
                     <line x1="8" y1="2" x2="8" y2="6" />
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
-                  Member since: <span className="text-white">Jan 2026</span>
+                  Member since: <span className="text-white">{memberSince}</span>
                 </span>
               </div>
               <div className="text-[#64748B] text-[12px] flex items-center gap-2 mt-2 md:mt-0 justify-center md:justify-start">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00C37B]"></div>
-                Last login: Today 14:23
+                Online
               </div>
             </div>
           </section>
@@ -439,8 +483,20 @@ const MyAccountPage = () => {
           {/* Stats Cards */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <CreditBalanceCard balance={balance} isLoading={balanceLoading} />
-            <TotalBetsCard />
-            <PLCard />
+            <TotalBetsCard
+              totalBets={betStats?.totalBets || 0}
+              won={betStats?.won || 0}
+              lost={betStats?.lost || 0}
+              open={betStats?.open || 0}
+              winRate={betStats?.winRate || 0}
+              biggestWin={betStats?.biggestWin || 0}
+              isLoading={statsLoading}
+            />
+            <PLCard
+              totalPnl={betStats?.totalPnl || 0}
+              dailyPnl={betStats?.dailyPnl || []}
+              isLoading={statsLoading}
+            />
           </section>
 
           {/* Action Tiles */}
@@ -566,6 +622,7 @@ const MyAccountPage = () => {
 
 const App = () => {
   const { balance } = useCredits();
+  const username = useAuthStore((s) => s.user?.username);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -587,7 +644,7 @@ const App = () => {
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ background: 'radial-gradient(circle at top center, #1a2235 0%, #0B0E1A 60%)', color: '#F1F5F9' }}>
-      <Sidebar balance={balance} />
+      <Sidebar balance={balance} username={username} />
       <MyAccountPage />
     </div>
   );
