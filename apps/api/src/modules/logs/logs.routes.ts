@@ -23,7 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
     if (threat === 'true') query = query.where('system_logs.threat_flag', true);
     if (userId) query = query.where('system_logs.user_id', parseInt(userId, 10));
 
-    const total = await query.clone().count('system_logs.id as count').first();
+    const total = await query.clone().clearSelect().count('system_logs.id as count').first();
     const logs = await query
       .orderBy('system_logs.created_at', 'desc')
       .limit(limit)
