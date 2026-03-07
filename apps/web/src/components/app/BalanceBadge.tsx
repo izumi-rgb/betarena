@@ -13,6 +13,10 @@ export function BalanceBadge({
 }) {
   const { balance, isLoading } = useBalance();
 
+  if (balance === null) {
+    return null;
+  }
+
   if (isLoading) {
     return <div className={className}>0.00 CR</div>;
   }

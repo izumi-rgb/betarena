@@ -82,14 +82,16 @@ export async function syncOdds(): Promise<void> {
         runtimeState.set(event.id, state);
       }
 
-      const shouldAdvanceClock = tickCounter % 2 === 0; // every ~10s with current scheduler
-      if (shouldAdvanceClock && state.minute < 90) {
-        state.minute += 1;
-        state.period = periodFromMinute(state.minute);
-        const incident = maybeGenerateIncident(state);
-        if (incident) {
-          state.events.push(incident);
-          if (state.events.length > 30) state.events = state.events.slice(-30);
+      if (process.env.SIMULATE_ODDS === 'true') {
+        const shouldAdvanceClock = tickCounter % 2 === 0; // every ~10s with current scheduler
+        if (shouldAdvanceClock && state.minute < 90) {
+          state.minute += 1;
+          state.period = periodFromMinute(state.minute);
+          const incident = maybeGenerateIncident(state);
+          if (incident) {
+            state.events.push(incident);
+            if (state.events.length > 30) state.events = state.events.slice(-30);
+          }
         }
       }
 

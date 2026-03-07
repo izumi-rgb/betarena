@@ -20,8 +20,10 @@ export default function AdminCreditsPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const [agentsRes, overviewRes, ledgerRes] = await Promise.all([
         apiGet<Agent[]>('/api/admin/agents'),
@@ -33,14 +35,11 @@ export default function AdminCreditsPage() {
       setBalance(Number(overviewRes.data?.balance || 0));
       setLedger((ledgerRes.data || []).map((r, i) => ({ ...r, id: String(r.id || i) })));
     } catch {
-      setLedger([
-        { id: 'l1', timestamp: new Date().toISOString(), from: 'Admin', to: 'Admin', amount: 100000, type: 'create', balanceAfter: 100000 },
-        { id: 'l2', timestamp: new Date().toISOString(), from: 'Admin', to: 'Agent_20', amount: -5000, type: 'assign', balanceAfter: 95000 },
-        { id: 'l3', timestamp: new Date().toISOString(), from: 'Admin', to: 'Agent_21', amount: -3000, type: 'assign', balanceAfter: 92000 },
-      ]);
-      setBalance(92000);
-      setAgents([{ id: 'Agent_20' }, { id: 'Agent_21' }]);
-      setAgentId('Agent_20');
+      setBalance(0);
+      setLedger([]);
+      setAgents([]);
+      setAgentId('');
+      setLoadError(true);
     }
   }, []);
 
@@ -83,6 +82,12 @@ export default function AdminCreditsPage() {
     <div className="min-h-screen bg-[#0B0E1A] p-6 text-white">
       <h1 className="mb-4 text-2xl font-bold">Credit Management</h1>
       {message ? <div className="mb-3 rounded border border-[#1E293B] bg-[#1A2235] px-3 py-2 text-sm text-[#94A3B8]">{message}</div> : null}
+      {loadError && (
+        <div className="mb-4 flex items-center gap-3 rounded border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+          <span>Unable to load credit data.</span>
+          <button onClick={load} className="ml-auto rounded border border-red-700 px-3 py-1 text-xs font-semibold hover:bg-red-900/40 transition-colors">Retry</button>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border border-[#1E293B] bg-[#1A2235] p-4">

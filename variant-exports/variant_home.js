@@ -485,43 +485,43 @@ const App = () => {
       id: 0, sport: 'Football',
       league: 'Premier League', status: "74'",
       team1: 'Arsenal', score1: '2', team2: 'Chelsea', score2: '1',
-      detailHref: '/sports', odds: [{ label: '1', value: '1.25' }, { label: 'X', value: '4.50' }, { label: '2', value: '8.00' }], markets: 112,
+      detailHref: '/sports/football/seed-fb-0', odds: [{ label: '1', value: '1.25' }, { label: 'X', value: '4.50' }, { label: '2', value: '8.00' }], markets: 112,
     },
     {
       id: 1, sport: 'Basketball',
       league: 'NBA', status: '3rd Qtr',
       team1: 'Lakers', score1: '88', team2: 'Warriors', score2: '92',
-      detailHref: '/sports/basketball', odds: [{ label: '1', value: '2.85' }, { label: '2', value: '1.45' }], markets: 45,
+      detailHref: '/sports/basketball/seed-bb-1', odds: [{ label: '1', value: '2.85' }, { label: '2', value: '1.45' }], markets: 45,
     },
     {
       id: 2, sport: 'Tennis',
       league: 'ATP Dubai', status: '2nd Set',
       team1: 'Djokovic', score1: '1', team2: 'Alcaraz', score2: '0',
-      detailHref: '/sports/tennis', odds: [{ label: '1', value: '1.18' }, { label: '2', value: '4.20' }], markets: 12,
+      detailHref: '/sports/tennis/seed-tn-2', odds: [{ label: '1', value: '1.18' }, { label: '2', value: '4.20' }], markets: 12,
     },
     {
       id: 3, sport: 'Football',
       league: 'La Liga', status: "38'",
       team1: 'Barcelona', score1: '1', team2: 'Real Madrid', score2: '1',
-      detailHref: '/sports', odds: [{ label: '1', value: '2.10' }, { label: 'X', value: '3.25' }, { label: '2', value: '3.40' }], markets: 98,
+      detailHref: '/sports/football/seed-fb-3', odds: [{ label: '1', value: '2.10' }, { label: 'X', value: '3.25' }, { label: '2', value: '3.40' }], markets: 98,
     },
     {
       id: 4, sport: 'Esports',
       league: 'LEC Spring', status: 'Game 2',
       team1: 'G2 Esports', score1: '1', team2: 'Fnatic', score2: '0',
-      detailHref: '/sports', odds: [{ label: '1', value: '1.60' }, { label: '2', value: '2.25' }], markets: 18,
+      detailHref: '/sports/esports/seed-es-4', odds: [{ label: '1', value: '1.60' }, { label: '2', value: '2.25' }], markets: 18,
     },
     {
       id: 5, sport: 'Cricket',
       league: 'IPL', status: '32nd Over',
       team1: 'Mumbai Indians', score1: '198', team2: 'Chennai SK', score2: '—',
-      detailHref: '/sports', odds: [{ label: '1', value: '1.55' }, { label: '2', value: '2.40' }], markets: 22,
+      detailHref: '/sports/cricket/seed-cr-5', odds: [{ label: '1', value: '1.55' }, { label: '2', value: '2.40' }], markets: 22,
     },
     {
       id: 6, sport: 'Tennis',
       league: 'WTA Dubai', status: '1st Set',
       team1: 'Swiatek', score1: '3', team2: 'Sabalenka', score2: '2',
-      detailHref: '/sports/tennis', odds: [{ label: '1', value: '1.72' }, { label: '2', value: '2.10' }], markets: 8,
+      detailHref: '/sports/tennis/seed-tn-6', odds: [{ label: '1', value: '1.72' }, { label: '2', value: '2.10' }], markets: 8,
     },
   ];
 
@@ -563,7 +563,7 @@ const App = () => {
       team1, score1, team2, score2,
       odds,
       markets: mkts.length || 1,
-      detailHref: hrefMap[sportLower] || '/sports',
+      detailHref: `${hrefMap[sportLower] || '/sports'}/${event.id || index}`,
     };
   };
 
@@ -602,8 +602,8 @@ const App = () => {
 
   const upcomingTitle = useMemo(() => {
     const sport = filterSportName(activeFilter);
-    if (sport === 'All Sports') return 'Premier League';
-    return sport === 'Football' ? 'Premier League' : sport;
+    if (sport === 'All Sports') return 'Upcoming Today';
+    return sport === 'Football' ? 'Upcoming Today' : sport;
   }, [activeFilter]);
   const navTabsWithHref = [
     { label: 'Home', href: '/sports' },
@@ -843,16 +843,16 @@ const App = () => {
 
             <div style={customStyles.subNav}>
               {[
-                { name: 'Premier League', flag: 'linear-gradient(to right, #ce1126, #fff, #ce1126)' },
-                { name: 'La Liga', flag: 'linear-gradient(to bottom, #AA151B, #F1BF00)' },
-                { name: 'Bundesliga', flag: 'linear-gradient(to bottom, #000, #dd0000, #ffce00)' },
-                { name: 'Serie A', flag: 'linear-gradient(to right, #009246, #fff, #ce2b37)' },
-                { name: 'Champions League', flag: '#002F6C' },
+                { name: 'Premier League', flag: 'linear-gradient(to right, #ce1126, #fff, #ce1126)', slug: 'premier-league' },
+                { name: 'La Liga', flag: 'linear-gradient(to bottom, #AA151B, #F1BF00)', slug: 'la-liga' },
+                { name: 'Bundesliga', flag: 'linear-gradient(to bottom, #000, #dd0000, #ffce00)', slug: 'bundesliga' },
+                { name: 'Serie A', flag: 'linear-gradient(to right, #009246, #fff, #ce2b37)', slug: 'serie-a' },
+                { name: 'Champions League', flag: '#002F6C', slug: 'champions-league' },
               ].map((item) => {
                 return (
                   <Link
                     key={item.name}
-                    to="/sports/football"
+                    to={`/sports/football?league=${item.slug}`}
                     onMouseEnter={(e) => { e.currentTarget.style.color = '#F1F5F9'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; }}
                     style={{

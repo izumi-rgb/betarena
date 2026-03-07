@@ -44,7 +44,7 @@ export async function seed(knex: Knex): Promise<void> {
     home_team: g.home,
     away_team: g.away,
     starts_at: addDays(now, Math.floor(i / 3)),
-    status: i === 0 ? 'live' : 'scheduled',
+    status: 'scheduled',
   }));
 
   const inserted = await knex('events').insert(events).returning('*');
@@ -180,10 +180,6 @@ export async function seed(knex: Knex): Promise<void> {
     );
   }
   await knex('odds').insert(oddsRows);
-
-  if (inserted.find((e) => e.status === 'live')) {
-    await knex('events').where({ id: inserted[0].id }).update({ score: JSON.stringify({ home: '1', away: '0' }) });
-  }
 
   console.log(`Seeded ${inserted.length} bet365-style events across ${new Set(events.map((e) => e.sport)).size} sports.`);
 }

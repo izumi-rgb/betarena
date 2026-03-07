@@ -129,13 +129,7 @@ function MarketAccordion({ title, children, defaultOpen = true }: { title: strin
 }
 
 function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; onPick: (pick: BetPick) => void; picks: BetPick[]; eventId: number }) {
-  const stats = event.stats ?? {
-    fgPercent: [49, 46],
-    threePtPercent: [38, 35],
-    rebounds: [42, 39],
-    assists: [21, 18],
-    turnovers: [11, 13],
-  };
+  const stats = event.stats ?? {};
 
   const marketGroups = useMemo(
     () => [
@@ -253,10 +247,10 @@ function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; 
 
           <div className="rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-6 py-3 text-center">
             <div className="font-mono text-[28px] font-bold text-white">
-              {event.score?.home ?? 78} — {event.score?.away ?? 71}
+              {event.score?.home ?? 0} — {event.score?.away ?? 0}
             </div>
             <div className="mt-1 font-mono text-sm text-[#94A3B8]">
-              {event.period ?? 'Q3'} • {event.clock ?? '8:42'}
+              {event.period ?? ''} • {event.clock ?? ''}
             </div>
           </div>
 

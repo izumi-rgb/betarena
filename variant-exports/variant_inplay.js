@@ -441,16 +441,7 @@ const ScoreUpdatesPanel = ({ onOddClick, selections, liveEvents = [] }) => {
       }))
     : null;
 
-  const fallbackItems = [
-    { icon: '⚽', matchTitle: 'Arsenal 2–1 Chelsea', scoreDisplay: <span>Arsenal <span className="text-[#00C37B]">2</span> – 1 Chelsea</span>, time: "78'", highlighted: true },
-    { icon: '⚽', matchTitle: 'Man City 1–0 Liverpool', scoreDisplay: 'Man City 1 – 0 Liverpool', time: "45'" },
-    { icon: '⚽', matchTitle: 'Real Madrid 3–1 Atletico', scoreDisplay: <span>Real Madrid <span className="text-[#00C37B]">3</span> – 1 Atletico</span>, time: "67'" },
-    { icon: '🎾', matchTitle: 'Djokovic 2–1 Alcaraz', scoreDisplay: 'Djokovic 2 – 1 Alcaraz', time: '3rd' },
-    { icon: '🏀', matchTitle: 'Lakers 78–71 Warriors', scoreDisplay: <span>Lakers <span className="text-[#00C37B]">78</span> – 71 Warriors</span>, time: 'Q3' },
-    { icon: '⚽', matchTitle: 'PSG 0–2 Bayern', scoreDisplay: 'PSG 0 – 2 Bayern', time: "82'" },
-  ];
-
-  const items = liveItems || fallbackItems;
+  const items = liveItems || [];
   if (items.length > 0) items[0].highlighted = true;
 
   const featuredEvent = liveEvents.length > 0 ? liveEvents[0] : null;
@@ -764,7 +755,7 @@ const InPlayPage = () => {
             <h1 className="text-[22px] font-extrabold text-white tracking-tight">⚡ In-Play</h1>
             <div className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" style={customStyles.pulsingDot} />
           </div>
-          <div className="text-[#00C37B] text-[13px] font-medium">{useLiveData ? `${liveEvents.length} events live right now` : '247 events live right now'}</div>
+          <div className="text-[#00C37B] text-[13px] font-medium">{useLiveData ? `${liveEvents.length} events live right now` : 'No live events right now'}</div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wide">Auto-refresh</span>
@@ -772,7 +763,7 @@ const InPlayPage = () => {
         </div>
       </div>
 
-      <div className="flex gap-2.5 overflow-x-auto mb-8 pb-1" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+      {useLiveData && <div className="flex gap-2.5 overflow-x-auto mb-8 pb-1" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
         {currentFilters.map((sport, index) => (
           <button
             key={index}
@@ -786,7 +777,7 @@ const InPlayPage = () => {
             {sport.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="flex gap-6">
         <div className={`${selections.length > 0 ? 'w-[50%]' : 'w-[65%]'} flex flex-col gap-4 transition-all`}>
@@ -801,27 +792,16 @@ const InPlayPage = () => {
                   <div className="text-[14px]">No live events for this sport right now</div>
                 </div>
               )}
+              <button className="w-full mt-2 py-3 border border-[#00C37B] text-[#00C37B] font-semibold text-[13px] rounded-lg hover:bg-[rgba(0,195,123,0.05)] transition-colors">
+                {`Showing ${filteredLiveEvents.length} of ${liveEvents.length} live events`}
+              </button>
             </>
           ) : (
-            <>
-              {(activeSportKey === 'all' || activeSportKey === 'football') && <FootballCard onOddClick={onOddClick} selections={selections} />}
-              {(activeSportKey === 'all' || activeSportKey === 'tennis') && <TennisCard onOddClick={onOddClick} selections={selections} />}
-              {(activeSportKey === 'all' || activeSportKey === 'basketball') && <BasketballCard onOddClick={onOddClick} selections={selections} />}
-              {(activeSportKey === 'all' || activeSportKey === 'cricket') && <CricketCard onOddClick={onOddClick} selections={selections} />}
-              {activeSportKey !== 'all' && !['football','tennis','basketball','cricket'].includes(activeSportKey) && (
-                <div className="text-center py-12 text-[#64748B]">
-                  <div className="text-[32px] mb-2">🔜</div>
-                  <div className="text-[14px]">No live {currentFilters[safeActiveSport]?.label.replace(/\s*\d+$/, '')} events right now</div>
-                </div>
-              )}
-            </>
+            <div className="text-center py-12 text-[#64748B]">
+              <div className="text-[32px] mb-2">🔜</div>
+              <div className="text-[14px]">No live events right now</div>
+            </div>
           )}
-
-          <button className="w-full mt-2 py-3 border border-[#00C37B] text-[#00C37B] font-semibold text-[13px] rounded-lg hover:bg-[rgba(0,195,123,0.05)] transition-colors">
-            {useLiveData
-              ? `Showing ${filteredLiveEvents.length} of ${liveEvents.length} live events`
-              : 'Load More Live Events (243 remaining)'}
-          </button>
         </div>
 
         <div className={`${selections.length > 0 ? 'w-[50%]' : 'w-[35%]'} flex flex-col gap-4 transition-all`}>

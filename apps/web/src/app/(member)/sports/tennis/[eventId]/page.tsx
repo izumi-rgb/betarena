@@ -173,10 +173,10 @@ function MatchCard({ event, onPick, picks, eventId }: { event: TennisEvent; onPi
 
           <div className="rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-6 py-3 text-center">
             <div className="font-mono text-[28px] font-bold text-white">
-              {event.sets?.home ?? 2} — {event.sets?.away ?? 1}
+              {event.sets?.home ?? 0} — {event.sets?.away ?? 0}
             </div>
             <div className="mt-1 font-mono text-sm text-[#94A3B8]">
-              {event.gameScore?.home ?? '40'} — {event.gameScore?.away ?? '30'}
+              {event.gameScore?.home ?? '0'} — {event.gameScore?.away ?? '0'}
             </div>
           </div>
 
@@ -323,9 +323,9 @@ export default function TennisMatchPage() {
         ...normalized,
         id: String(normalized.id ?? eventId),
         league: normalized.league || 'ATP Tour',
-        status: normalized.status || 'live',
-        sets: normalized.sets ?? { home: 2, away: 1 },
-        gameScore: normalized.gameScore ?? { home: '40', away: '30' },
+        status: normalized.status || 'scheduled',
+        sets: normalized.sets ?? { home: 0, away: 0 },
+        gameScore: normalized.gameScore ?? { home: '0', away: '0' },
         serving: normalized.serving ?? 'home',
         markets: normalized.markets ?? [],
       } as TennisEvent));

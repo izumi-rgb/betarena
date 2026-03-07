@@ -452,20 +452,25 @@ const MyBetsPage = () => {
   const [cashOutModal, setCashOutModal] = useState({ isOpen: false, betId: '', amount: 0 });
   const [apiBets, setApiBets] = useState([]);
   const [betsLoading, setBetsLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
   const { isAuthenticated } = useCredits();
+
+  const fetchBets = async () => {
+    setApiError(false);
+    setBetsLoading(true);
+    try {
+      const res = await apiGet('/api/bets/my-bets');
+      if (res.success && res.data) {
+        const bets = Array.isArray(res.data) ? res.data : (res.data.bets || []);
+        setApiBets(bets);
+      }
+    } catch {
+      setApiError(true);
+    } finally { setBetsLoading(false); }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) { setBetsLoading(false); return; }
-    const fetchBets = async () => {
-      try {
-        const res = await apiGet('/api/bets/my-bets');
-        if (res.success && res.data) {
-          const bets = Array.isArray(res.data) ? res.data : (res.data.bets || []);
-          setApiBets(bets);
-        }
-      } catch { /* fallback to hardcoded */ }
-      finally { setBetsLoading(false); }
-    };
     fetchBets();
   }, [isAuthenticated]);
 
@@ -488,7 +493,7 @@ const MyBetsPage = () => {
             className={`pb-3 border-b-2 font-semibold text-[14px] flex items-center gap-2 transition-colors ${activeTab === 'open' ? 'border-[#00C37B] text-white' : 'border-transparent text-[#94A3B8] hover:text-white'}`}
           >
             Open Bets
-            <span className="bg-[rgba(0,195,123,0.15)] text-[#00C37B] text-[11px] px-1.5 py-0.5 rounded font-bold">{hasApiBets ? openBets.length : 3}</span>
+            <span className="bg-[rgba(0,195,123,0.15)] text-[#00C37B] text-[11px] px-1.5 py-0.5 rounded font-bold">{openBets.length}</span>
           </button>
           <button
             onClick={() => setActiveTab('settled')}
@@ -501,7 +506,7 @@ const MyBetsPage = () => {
             className={`pb-3 border-b-2 font-medium text-[14px] transition-colors flex items-center gap-2 ${activeTab === 'cashout' ? 'border-[#00C37B] text-white font-semibold' : 'border-transparent text-[#94A3B8] hover:text-white'}`}
           >
             Cash Out
-            <span className="bg-[rgba(245,158,11,0.15)] text-[#F59E0B] text-[11px] px-1.5 py-0.5 rounded font-bold">{hasApiBets ? openBets.filter(b => b.cashout_available).length : 2}</span>
+            <span className="bg-[rgba(245,158,11,0.15)] text-[#F59E0B] text-[11px] px-1.5 py-0.5 rounded font-bold">{openBets.filter(b => b.cashout_available).length}</span>
           </button>
         </div>
 
@@ -513,36 +518,30 @@ const MyBetsPage = () => {
         )}
 
         <div className="space-y-4">
-          {activeTab === 'open' && !betsLoading && (
-            hasApiBets ? (
-              openBets.length > 0 ? openBets.map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
-                <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No open bets</div></div>
-              )
-            ) : (
-              <>
-                <AccumulatorBetCard onCashOut={handleCashOut} />
-                <SingleBetCard onCashOut={handleCashOut} />
-                <LiveBetCard />
-                <SettledBets />
-              </>
+          {apiError && (
+            <div className="text-center py-12 text-[#64748B]">
+              <div className="text-[32px] mb-2">⚠️</div>
+              <div className="text-[14px] mb-4">Unable to load your bets.</div>
+              <button onClick={fetchBets} className="px-4 py-2 bg-[#1A2235] border border-[#00C37B] text-[#00C37B] rounded text-[13px] font-semibold hover:bg-[rgba(0,195,123,0.1)] transition-colors">Retry</button>
+            </div>
+          )}
+
+          {!apiError && activeTab === 'open' && !betsLoading && (
+            openBets.length > 0 ? openBets.map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
+              <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No open bets</div></div>
             )
           )}
 
-          {activeTab === 'settled' && !betsLoading && (
-            hasApiBets ? (
-              settledBets.length > 0 ? settledBets.map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
-                <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No settled bets yet</div></div>
-              )
-            ) : (
-              <SettledBets />
+          {!apiError && activeTab === 'settled' && !betsLoading && (
+            settledBets.length > 0 ? settledBets.map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
+              <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No settled bets yet</div></div>
             )
           )}
 
-          {activeTab === 'cashout' && (
-            <>
-              <AccumulatorBetCard onCashOut={handleCashOut} />
-              <SingleBetCard onCashOut={handleCashOut} />
-            </>
+          {!apiError && activeTab === 'cashout' && !betsLoading && (
+            openBets.filter(b => b.cashout_available).length > 0 ? openBets.filter(b => b.cashout_available).map(bet => <ApiBetCard key={bet.id || bet.uid} bet={bet} />) : (
+              <div className="text-center py-12 text-[#64748B]"><div className="text-[32px] mb-2">📋</div><div className="text-[14px]">No cashout available</div></div>
+            )
           )}
         </div>
       </div>

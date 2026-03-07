@@ -22,12 +22,10 @@ export default function EsportsLandingPage() {
           return;
         }
       } catch {
-        // Fall through to demo route when esports list lookup fails.
+        // No esports events available.
       }
 
-      if (!cancelled) {
-        router.replace('/sports/esports/demo');
-      }
+      // No live esports events — show empty state (do not redirect to demo)
     };
 
     resolveFirstEvent();
@@ -38,8 +36,9 @@ export default function EsportsLandingPage() {
   }, [router]);
 
   return (
-    <div className="flex h-screen items-center justify-center bg-[#0B0E1A] text-[#94A3B8]">
-      Loading esports events...
+    <div className="flex h-screen flex-col items-center justify-center bg-[#0B0E1A] text-[#94A3B8] gap-3">
+      <div className="text-[32px]">🎮</div>
+      <div className="text-[14px]">No live esports events right now</div>
     </div>
   );
 }

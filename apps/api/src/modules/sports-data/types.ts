@@ -16,6 +16,7 @@ export interface LiveEvent {
   markets: Market[];
   source: string;
   lastUpdated: Date;
+  lastSeenInFeed?: number; // unix ms — set when event enters/updates in display list
 }
 
 export interface Market {

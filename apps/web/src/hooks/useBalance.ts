@@ -54,7 +54,7 @@ export function useBalance(options?: { enabled?: boolean }) {
   }, [isAuthenticated, queryClient]);
 
   return {
-    balance: query.data ?? 0,
+    balance: isAuthenticated ? (query.data ?? 0) : null,
     isLoading: query.isLoading,
     error: query.error,
     refetch,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useCredits } from '@/contexts/CreditsContext';
 
@@ -42,13 +42,28 @@ const ResultsPage = () => {
   ];
   const { pathname } = useLocation();
 
-  const rows = [
-    { league: 'Premier League', match: 'Arsenal 2 - 1 Chelsea', status: 'FT', market: 'Match Winner', result: 'Home', settled: 'Won' },
-    { league: 'La Liga', match: 'Barcelona 1 - 1 Atletico', status: 'FT', market: 'Under 2.5', result: 'Push', settled: 'Void' },
-    { league: 'NBA', match: 'Lakers 101 - 98 Warriors', status: 'FT', market: 'Lakers ML', result: 'Home', settled: 'Won' },
-    { league: 'ATP', match: 'Djokovic 2 - 1 Alcaraz', status: 'FT', market: 'Match Winner', result: 'Home', settled: 'Won' },
-    { league: 'UCL', match: 'PSG 0 - 2 Bayern', status: 'FT', market: 'Away Win', result: 'Away', settled: 'Lost' },
-  ];
+  const [rows, setRows] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      try {
+        const [rowsRes, statsRes] = await Promise.all([
+          fetch('/api/results').then(r => r.json()),
+          fetch('/api/results/stats').then(r => r.json()),
+        ]);
+        setRows(rowsRes.data || rowsRes || []);
+        setStats(statsRes.data || statsRes || null);
+      } catch {
+        setRows([]);
+        setStats(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchResults();
+  }, []);
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden relative bg-[#0B0E1A]">
@@ -80,26 +95,40 @@ const ResultsPage = () => {
           <h1 className="text-white text-[24px] font-bold tracking-tight">Results</h1>
           <p className="text-[#94A3B8] mt-1 mb-4">Recently settled markets and final outcomes.</p>
 
-          <div className="grid grid-cols-3 gap-4 mb-5">
-            <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4"><div className="text-[#64748B] text-xs uppercase">Settled Today</div><div className="text-white text-2xl font-bold mt-1">24</div></div>
-            <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4"><div className="text-[#64748B] text-xs uppercase">Winning Settles</div><div className="text-[#00C37B] text-2xl font-bold mt-1">16</div></div>
-            <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4"><div className="text-[#64748B] text-xs uppercase">Net P&L</div><div className="text-[#F59E0B] text-2xl font-bold mt-1">+125.50 CR</div></div>
-          </div>
-
-          <div className="bg-[#111827] border border-[#1E293B] rounded-xl overflow-hidden">
-            <div className="grid grid-cols-6 gap-3 px-4 py-3 border-b border-[#1E293B] text-[#64748B] text-[12px] font-semibold uppercase">
-              <div>League</div><div className="col-span-2">Match</div><div>Status</div><div>Market</div><div>Settlement</div>
+          {stats && (
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4"><div className="text-[#64748B] text-xs uppercase">Settled Today</div><div className="text-white text-2xl font-bold mt-1">{stats.settledToday ?? 0}</div></div>
+              <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4"><div className="text-[#64748B] text-xs uppercase">Winning Settles</div><div className="text-[#00C37B] text-2xl font-bold mt-1">{stats.winningSettles ?? 0}</div></div>
+              <div className="bg-[#1A2235] border border-[#1E293B] rounded-xl p-4"><div className="text-[#64748B] text-xs uppercase">Net P&L</div><div className="text-[#F59E0B] text-2xl font-bold mt-1">{stats.netPnl != null ? `${stats.netPnl >= 0 ? '+' : ''}${stats.netPnl.toFixed(2)} CR` : '—'}</div></div>
             </div>
-            {rows.map((r) => (
-              <div key={r.match} className="grid grid-cols-6 gap-3 px-4 py-3 border-b last:border-b-0 border-[#1E293B] text-[13px]">
-                <div className="text-[#94A3B8]">{r.league}</div>
-                <div className="col-span-2 text-white font-medium">{r.match}</div>
-                <div className="text-[#94A3B8] font-mono">{r.status}</div>
-                <div className="text-[#94A3B8]">{r.market}</div>
-                <div className={r.settled === 'Won' ? 'text-[#00C37B] font-bold' : r.settled === 'Lost' ? 'text-[#EF4444] font-bold' : 'text-[#F59E0B] font-bold'}>{r.settled}</div>
+          )}
+
+          {loading ? (
+            <div className="text-center py-12 text-[#64748B]">
+              <div className="animate-spin w-8 h-8 border-2 border-[#00C37B] border-t-transparent rounded-full mx-auto mb-3" />
+              <div className="text-[13px]">Loading results...</div>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="text-center py-12 text-[#64748B]">
+              <div className="text-[32px] mb-2">📋</div>
+              <div className="text-[14px]">No results today</div>
+            </div>
+          ) : (
+            <div className="bg-[#111827] border border-[#1E293B] rounded-xl overflow-hidden">
+              <div className="grid grid-cols-6 gap-3 px-4 py-3 border-b border-[#1E293B] text-[#64748B] text-[12px] font-semibold uppercase">
+                <div>League</div><div className="col-span-2">Match</div><div>Status</div><div>Market</div><div>Settlement</div>
               </div>
-            ))}
-          </div>
+              {rows.map((r, i) => (
+                <div key={r.match || i} className="grid grid-cols-6 gap-3 px-4 py-3 border-b last:border-b-0 border-[#1E293B] text-[13px]">
+                  <div className="text-[#94A3B8]">{r.league}</div>
+                  <div className="col-span-2 text-white font-medium">{r.match}</div>
+                  <div className="text-[#94A3B8] font-mono">{r.status}</div>
+                  <div className="text-[#94A3B8]">{r.market}</div>
+                  <div className={r.settled === 'Won' ? 'text-[#00C37B] font-bold' : r.settled === 'Lost' ? 'text-[#EF4444] font-bold' : 'text-[#F59E0B] font-bold'}>{r.settled}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>

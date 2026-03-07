@@ -75,19 +75,24 @@ async function mergeWithDisplayList(fresh: LiveEvent[]): Promise<LiveEvent[]> {
     });
   }
 
-  const freshById = new Map<string, LiveEvent>(fresh.map((e) => [e.id, e]));
+  const now = Date.now();
+  const STALE_MS = 5 * 60 * 1000; // 5 minutes
+  const freshById = new Map<string, LiveEvent>(
+    fresh.map((e) => [e.id, { ...e, lastSeenInFeed: now }])
+  );
 
   // 1. Update-in-place for events already in the display list
   const merged: LiveEvent[] = [];
   for (const old of existing) {
     if (old.status === 'ft') continue; // remove finished events
     const updated = freshById.get(old.id);
+    if (!updated && old.lastSeenInFeed && now - old.lastSeenInFeed > STALE_MS) continue; // drop ghost events
     merged.push(updated ?? old); // keep position; use fresh data if available
   }
 
   // 2. Append genuinely new events (not in the existing list)
   const existingIds = new Set(existing.map((e) => e.id));
-  const newEvents = fresh.filter((e) => !existingIds.has(e.id));
+  const newEvents = fresh.filter((e) => !existingIds.has(e.id)).map((e) => ({ ...e, lastSeenInFeed: now }));
   newEvents.sort((a, b) => getLeagueTier(a) - getLeagueTier(b));
   merged.push(...newEvents);
 

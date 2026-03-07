@@ -47,7 +47,7 @@ export function MemberGlobalChrome() {
 
   const totalOdds = useMemo(() => picks.reduce((acc, p) => acc * p.odds, 1), [picks]);
   const potential = (Number(stake) || 0) * (picks.length ? totalOdds : 0);
-  const enoughBalance = balance >= (Number(stake) || 0);
+  const enoughBalance = (balance ?? 0) >= (Number(stake) || 0);
 
   const formatCurrency = (value: number) => {
     const num = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -134,7 +134,7 @@ export function MemberGlobalChrome() {
             <div className="fixed bottom-0 left-0 right-0 border-t border-[#1E293B] bg-[#111827] p-4 md:hidden">
               <label className="mb-1 block text-xs text-[#94A3B8]">Stake</label>
               <input value={stake} onChange={(e) => setStake(e.target.value)} className="w-full rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-3 py-2 font-mono text-white" />
-              <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]"><span>Available Balance</span><span className="font-mono text-white">{formatCurrency(balance)}</span></div>
+              {balance !== null && <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]"><span>Available Balance</span><span className="font-mono text-white">{formatCurrency(balance)}</span></div>}
               <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]"><span>Total Odds</span><span className="font-mono text-white">{picks.length ? totalOdds.toFixed(2) : '0.00'}</span></div>
               <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]"><span>Potential Return</span><span className="font-mono text-[#00C37B]">{potential.toFixed(2)}</span></div>
               <button

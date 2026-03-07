@@ -176,29 +176,13 @@ export async function getEventMarkets(eventId: number) {
 }
 
 export async function getLiveEvents() {
-  // Try real sports data providers first
   try {
     const liveEvents = await SportsDataService.getLiveEvents();
-    if (liveEvents.length > 0) {
-      return liveEvents;
-    }
+    return liveEvents;
   } catch (err) {
-    logger.warn('SportsDataService.getLiveEvents failed, falling back to DB', {
+    logger.warn('SportsDataService.getLiveEvents failed', {
       error: (err as Error).message,
     });
   }
-
-  // Fallback: local DB query
-  const rows = await db('events')
-    .where({ status: 'live' })
-    .orderBy('starts_at', 'asc');
-  if (rows.length === 0) return [];
-  const eventIds = rows.map((r: any) => r.id);
-  const oddsRows = await db('odds').whereIn('event_id', eventIds);
-  const marketsByEvent: Record<number, any[]> = {};
-  for (const o of oddsRows) {
-    if (!marketsByEvent[o.event_id]) marketsByEvent[o.event_id] = [];
-    marketsByEvent[o.event_id].push(mapOddsRow(o));
-  }
-  return rows.map((r: any) => mapEventRow(r, marketsByEvent[r.id] || []));
+  return [];
 }

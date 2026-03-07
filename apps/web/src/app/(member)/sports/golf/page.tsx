@@ -22,12 +22,10 @@ export default function GolfLandingPage() {
           return;
         }
       } catch {
-        // Fall through to sports lobby if golf list lookup fails.
+        // No golf events available.
       }
 
-      if (!cancelled) {
-        router.replace('/sports/golf/demo');
-      }
+      // No live golf events — show empty state (do not redirect to demo)
     };
 
     resolveFirstEvent();
@@ -38,8 +36,9 @@ export default function GolfLandingPage() {
   }, [router]);
 
   return (
-    <div className="flex h-screen items-center justify-center bg-[#0B0E1A] text-[#94A3B8]">
-      Loading golf tournaments...
+    <div className="flex h-screen flex-col items-center justify-center bg-[#0B0E1A] text-[#94A3B8] gap-3">
+      <div className="text-[32px]">⛳</div>
+      <div className="text-[14px]">No live golf events right now</div>
     </div>
   );
 }
