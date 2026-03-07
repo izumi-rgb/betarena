@@ -9,6 +9,7 @@ import {
   createSubAgent,
   listSubAgents,
   updateSubAgentPrivilege,
+  resetChildPassword,
 } from './agents.service';
 
 const router = Router();
@@ -181,6 +182,24 @@ router.get('/sub-agents', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false, data: null, message: 'Failed', error: (err as Error).message,
     });
+  }
+});
+
+router.post('/users/:id/reset-password', async (req: Request, res: Response) => {
+  try {
+    const targetId = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(targetId)) {
+      res.status(400).json({ success: false, data: null, message: 'Invalid user ID', error: 'INVALID_INPUT' });
+      return;
+    }
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ua = req.get('user-agent') || 'unknown';
+    const result = await resetChildPassword(req.user!.id, req.user!.role, targetId, ip, ua);
+    res.json({ success: true, data: result, message: 'Password reset. Save the new password — it cannot be retrieved again.', error: null });
+  } catch (err) {
+    const msg = (err as Error).message;
+    const status = msg === 'USER_NOT_FOUND' ? 404 : msg === 'NOT_AUTHORIZED' ? 403 : 500;
+    res.status(status).json({ success: false, data: null, message: msg, error: msg });
   }
 });
 

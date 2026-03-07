@@ -235,3 +235,35 @@ export async function updateSubAgentPrivilege(
 
   return { id: subAgentId, can_create_sub_agent: canCreate };
 }
+
+export async function resetChildPassword(
+  agentId: number,
+  agentRole: string,
+  targetId: number,
+  ip: string,
+  userAgent: string
+) {
+  const target = await db('users').where({ id: targetId }).first();
+  if (!target) throw new Error('USER_NOT_FOUND');
+
+  // Agents can only reset passwords for their own members and sub-agents
+  if (target.parent_agent_id !== agentId) {
+    throw new Error('NOT_AUTHORIZED');
+  }
+
+  const newPassword = generatePassword();
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db('users').where({ id: targetId }).update({ password_hash: passwordHash });
+
+  await writeSystemLog({
+    user_id: agentId,
+    role: agentRole,
+    action: 'user.reset_password',
+    ip_address: ip,
+    user_agent: userAgent,
+    payload: { target_user_id: targetId, target_role: target.role, target_display_id: target.display_id },
+    result: 'success',
+  });
+
+  return { username: target.username, password: newPassword };
+}

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
 import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
+import { ResetPasswordModal } from '@/components/shared/ResetPasswordModal';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -231,6 +232,7 @@ export default function AgentMembersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [resetTarget, setResetTarget] = useState<{ id: number; name: string } | null>(null);
 
   /* ---------- data ---------- */
 
@@ -504,9 +506,18 @@ export default function AgentMembersPage() {
 
                   {/* Actions */}
                   <td className="px-4 py-3">
-                    <button className="rounded border border-[#1E293B] bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#64748B] transition hover:text-white">
-                      MANAGE
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setResetTarget({ id: m.id, name: m.username || m.display_id || `Member #${m.id}` })}
+                        className="rounded border border-[#1E293B] bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#F59E0B]/60 transition hover:text-[#F59E0B] hover:border-[#F59E0B]/40"
+                        title="Reset Password"
+                      >
+                        RESET PW
+                      </button>
+                      <button className="rounded border border-[#1E293B] bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#64748B] transition hover:text-white">
+                        MANAGE
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -574,6 +585,15 @@ export default function AgentMembersPage() {
         onClose={() => setShowModal(false)}
         onCreated={handleCreated}
       />
+
+      {resetTarget && (
+        <ResetPasswordModal
+          targetId={resetTarget.id}
+          targetName={resetTarget.name}
+          apiEndpoint={`/api/agents/users/${resetTarget.id}/reset-password`}
+          onClose={() => setResetTarget(null)}
+        />
+      )}
     </div>
   );
 }

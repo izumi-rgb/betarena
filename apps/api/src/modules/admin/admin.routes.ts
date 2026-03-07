@@ -9,6 +9,7 @@ import {
   getAgentById,
   updateAgentStatus,
   updateAgentPrivilege,
+  resetUserPassword,
 } from './admin.service';
 
 const router = Router();
@@ -209,6 +210,24 @@ router.patch('/members/:id/status', async (req: Request, res: Response) => {
     res.json({ success: true, data: { id: memberId, is_active }, message: 'Member status updated', error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, message: 'Failed to update member status', error: (err as Error).message });
+  }
+});
+
+router.post('/users/:id/reset-password', async (req: Request, res: Response) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isFinite(userId)) {
+      res.status(400).json({ success: false, data: null, message: 'Invalid user ID', error: 'INVALID_INPUT' });
+      return;
+    }
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.get('user-agent') || 'unknown';
+    const result = await resetUserPassword(userId, req.user!.id, ip, userAgent);
+    res.json({ success: true, data: result, message: 'Password reset. Save the new password — it cannot be retrieved again.', error: null });
+  } catch (err) {
+    const msg = (err as Error).message;
+    const status = msg === 'USER_NOT_FOUND' ? 404 : msg === 'CANNOT_RESET_ADMIN' ? 403 : 500;
+    res.status(status).json({ success: false, data: null, message: msg, error: msg });
   }
 });
 

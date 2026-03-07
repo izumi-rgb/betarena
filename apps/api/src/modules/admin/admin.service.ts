@@ -168,3 +168,30 @@ export async function updateAgentPrivilege(
 
   return { id: agentId, can_create_sub_agent: canCreateSubAgent };
 }
+
+export async function resetUserPassword(
+  userId: number,
+  adminId: number,
+  ip: string,
+  userAgent: string
+) {
+  const user = await db('users').where({ id: userId }).first();
+  if (!user) throw new Error('USER_NOT_FOUND');
+  if (user.role === 'admin') throw new Error('CANNOT_RESET_ADMIN');
+
+  const newPassword = generatePassword();
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db('users').where({ id: userId }).update({ password_hash: passwordHash });
+
+  await writeSystemLog({
+    user_id: adminId,
+    role: 'admin',
+    action: 'user.reset_password',
+    ip_address: ip,
+    user_agent: userAgent,
+    payload: { target_user_id: userId, target_role: user.role, target_display_id: user.display_id },
+    result: 'success',
+  });
+
+  return { username: user.username, password: newPassword };
+}

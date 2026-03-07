@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
+import { ResetPasswordModal } from '@/components/shared/ResetPasswordModal';
 
 type SubAgent = {
   id: number;
@@ -45,6 +46,7 @@ export default function AgentsPage() {
   const [nickname, setNickname] = useState('');
   const [createdAgent, setCreatedAgent] = useState<CreatedAgent | null>(null);
   const [page, setPage] = useState(1);
+  const [resetTarget, setResetTarget] = useState<{ id: number; name: string } | null>(null);
 
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['admin', 'agents'],
@@ -92,6 +94,7 @@ export default function AgentsPage() {
     setNickname('');
     setCreatedAgent(null);
   };
+
 
   return (
     <div className="flex flex-col overflow-hidden" style={{ height: '100vh' }}>
@@ -287,6 +290,13 @@ export default function AgentsPage() {
                               Unsuspend
                             </button>
                           )}
+                          <button
+                            onClick={() => setResetTarget({ id: agent.id, name: agent.username || agent.display_id || `Agent #${agent.id}` })}
+                            className="border border-[#F59E0B]/20 text-[#F59E0B]/60 text-[11px] font-bold px-3 py-1.5 rounded bg-[#111827] hover:text-[#F59E0B] hover:border-[#F59E0B]/40 transition-all"
+                            title="Reset password"
+                          >
+                            Reset PW
+                          </button>
                           {isActive && (
                             <button
                               onClick={() => statusMutation.mutate({ id: agent.id, is_active: false })}
@@ -469,6 +479,15 @@ export default function AgentsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {resetTarget && (
+        <ResetPasswordModal
+          targetId={resetTarget.id}
+          targetName={resetTarget.name}
+          apiEndpoint={`/api/admin/users/${resetTarget.id}/reset-password`}
+          onClose={() => setResetTarget(null)}
+        />
       )}
     </div>
   );

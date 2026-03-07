@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch } from '@/lib/api';
+import { ResetPasswordModal } from '@/components/shared/ResetPasswordModal';
 
 type MemberRow = {
   id: number;
@@ -42,6 +43,7 @@ export default function AdminMembersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [resetTarget, setResetTarget] = useState<{ id: number; name: string } | null>(null);
   const pageSize = 10;
 
   const { data: members = [], isLoading } = useQuery({
@@ -292,6 +294,16 @@ export default function AdminMembersPage() {
                                 )}
                               </svg>
                             </button>
+                            {/* Reset Password */}
+                            <button
+                              onClick={() => setResetTarget({ id: member.id, name: member.username || member.display_id })}
+                              title="Reset Password"
+                              className="flex items-center justify-center w-8 h-8 rounded-lg border border-[#1E293B] text-[#64748B] hover:border-[#F59E0B] hover:text-[#F59E0B] hover:bg-[#F59E0B05] transition-all"
+                            >
+                              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                            </button>
                             {/* Ban / Suspend */}
                             <button
                               onClick={() => statusMutation.mutate({ id: member.id, is_active: false })}
@@ -388,6 +400,15 @@ export default function AdminMembersPage() {
           </div>
         </div>
       </main>
+
+      {resetTarget && (
+        <ResetPasswordModal
+          targetId={resetTarget.id}
+          targetName={resetTarget.name}
+          apiEndpoint={`/api/admin/users/${resetTarget.id}/reset-password`}
+          onClose={() => setResetTarget(null)}
+        />
+      )}
     </div>
   );
 }
