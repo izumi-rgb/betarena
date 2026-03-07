@@ -1,7 +1,9 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/lib/api';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiGet, apiPost } from '@/lib/api';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 import { useAuthStore } from '@/stores/authStore';
 import { useBalance } from '@/hooks/useBalance';
 
@@ -14,6 +16,12 @@ type SubAgentRow = {
   member_count?: number;
 };
 
+type CreatedSubAgent = {
+  username: string;
+  password: string;
+  display_id?: string;
+};
+
 function parseAmount(value: number | string | undefined): number {
   const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? 0));
   return Number.isFinite(parsed) ? parsed : 0;
@@ -23,9 +31,137 @@ function fmt(n: number): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function CreateSubAgentModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [creating, setCreating] = useState(false);
+  const [credentials, setCredentials] = useState<CreatedSubAgent | null>(null);
+  const [copied, setCopied] = useState<'username' | 'password' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = useCallback(async () => {
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await apiPost<CreatedSubAgent>('/api/agents/sub-agents');
+      if (res.success && res.data) {
+        setCredentials(res.data);
+        onSuccess();
+      } else {
+        setError(res.message || 'Failed to create sub-agent');
+      }
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Network error. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  }, [onSuccess]);
+
+  const handleCopy = (field: 'username' | 'password', value: string) => {
+    copyToClipboard(value);
+    setCopied(field);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="w-[440px] rounded-2xl border border-[#1E293B] bg-[#111827] p-8 shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-[18px] font-bold text-white">
+            {credentials ? 'Sub-Agent Created' : 'Create Sub-Agent'}
+          </h3>
+          <button onClick={onClose} className="text-[#64748B] transition-colors hover:text-white">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="mb-6 h-px w-full bg-[#1E293B]" />
+
+        {!credentials ? (
+          <div>
+            <p className="mb-4 text-[13px] text-[#94A3B8]">
+              A new sub-agent will be created with auto-generated credentials. Make sure to save the credentials after creation.
+            </p>
+            {error && <p className="mb-3 text-[13px] text-[#EF4444]">{error}</p>}
+            <button
+              onClick={handleCreate}
+              disabled={creating}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00C37B] py-3.5 text-[13px] font-bold uppercase tracking-wide text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              {creating ? 'Creating...' : 'Generate Sub-Agent'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#00C37B]/20">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00C37B" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-white">Sub-Agent Created Successfully</p>
+                <p className="text-[12px] text-[#64748B]">Save these credentials — shown only once</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div>
+                <label className="text-[#64748B] text-[10px] font-bold uppercase tracking-wider">Username</label>
+                <div className="mt-1 bg-[#1A2235] border border-[#1E293B] rounded-lg px-4 py-3 font-mono text-white text-sm flex justify-between items-center">
+                  {credentials.username}
+                  <button onClick={() => handleCopy('username', credentials.username)} className="text-[#64748B] hover:text-[#00C37B]">
+                    {copied === 'username' ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C37B" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-[#64748B] text-[10px] font-bold uppercase tracking-wider">Password</label>
+                <div className="mt-1 bg-[#1A2235] border border-[#1E293B] rounded-lg px-4 py-3 font-mono text-white text-sm flex justify-between items-center">
+                  {credentials.password}
+                  <button onClick={() => handleCopy('password', credentials.password)} className="text-[#64748B] hover:text-[#00C37B]">
+                    {copied === 'password' ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C37B" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-lg p-3 mb-6">
+              <p className="text-[#F59E0B] text-[11px] font-medium">
+                These credentials will not be shown again. Copy and store them securely before closing.
+              </p>
+            </div>
+          </>
+        )}
+
+        <button
+          onClick={onClose}
+          className="w-full rounded-lg border border-[#1E293B] bg-[#1A2235] py-3 text-[13px] font-bold text-white transition-colors hover:bg-[#2D3B50]"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SubAgentHierarchyPage() {
   const user = useAuthStore((s) => s.user);
   const { balance } = useBalance();
+  const queryClient = useQueryClient();
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const subAgentsQuery = useQuery({
     queryKey: ['agent', 'sub-agents'],
@@ -59,7 +195,10 @@ export default function SubAgentHierarchyPage() {
             </svg>
             Export Tree
           </button>
-          <button className="flex items-center gap-2 rounded-lg bg-[#00C37B] px-4 py-2.5 text-[13px] font-bold text-black transition-opacity hover:opacity-90">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 rounded-lg bg-[#00C37B] px-4 py-2.5 text-[13px] font-bold text-black transition-opacity hover:opacity-90"
+          >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -204,6 +343,13 @@ export default function SubAgentHierarchyPage() {
           </button>
         </div>
       </div>
+
+      {showCreateModal && (
+        <CreateSubAgentModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['agent', 'sub-agents'] })}
+        />
+      )}
     </div>
   );
 }
