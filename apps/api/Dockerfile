@@ -24,6 +24,9 @@ COPY apps/api/ apps/api/
 # Copy root tsconfig
 COPY tsconfig.base.json ./
 
+# Build shared package first (API depends on its dist/)
+RUN npm run build --workspace=@betarena/shared
+
 # Build the API
 RUN npm run build --workspace=apps/api
 
@@ -32,6 +35,12 @@ RUN cd apps/api && npx tsc --outDir migrations-compiled \
     --module commonjs --target ES2022 --esModuleInterop \
     --skipLibCheck --declaration false \
     migrations/*.ts
+
+# Compile seed .ts files to .js for production use
+RUN cd apps/api && npx tsc --outDir seeds-compiled \
+    --module commonjs --target ES2022 --esModuleInterop \
+    --skipLibCheck --declaration false \
+    seeds/*.ts
 
 # ============================================
 # Stage 2: Production
@@ -57,14 +66,17 @@ COPY packages/shared/package.json packages/shared/package.json
 RUN npm ci --workspace=apps/api --workspace=packages/shared --include-workspace-root --omit=dev \
     && npm cache clean --force
 
-# Copy shared package source (needed at runtime since main points to src/)
-COPY packages/shared/src/ packages/shared/src/
+# Copy built shared package (main points to dist/index.js)
+COPY --from=build /app/packages/shared/dist packages/shared/dist/
 
 # Copy built API output from build stage
 COPY --from=build /app/apps/api/dist apps/api/dist
 
 # Copy compiled JS migrations for production
 COPY --from=build /app/apps/api/migrations-compiled/ apps/api/migrations/
+
+# Copy compiled JS seeds for production
+COPY --from=build /app/apps/api/seeds-compiled/ apps/api/seeds/
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs \

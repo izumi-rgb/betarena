@@ -7,11 +7,11 @@ import { copyToClipboard } from '@/lib/copyToClipboard';
 interface ResetPasswordModalProps {
   targetId: number;
   targetName: string;
-  apiEndpoint: string; // e.g. '/api/admin/users/5/reset-password' or '/api/agents/users/5/reset-password'
+  apiEndpoint: string;
   onClose: () => void;
 }
 
-export function ResetPasswordModal({ targetId, targetName, apiEndpoint, onClose }: ResetPasswordModalProps) {
+export function ResetPasswordModal({ targetName, apiEndpoint, onClose }: ResetPasswordModalProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ username: string; password: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
