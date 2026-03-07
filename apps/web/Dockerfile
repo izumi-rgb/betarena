@@ -42,6 +42,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV STANDALONE_BUILD=1
 
+# Accept public API URL at build time so NEXT_PUBLIC_* vars are baked into the bundle
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_WS_URL=http://localhost:4000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 # Build the Next.js app (standalone output)
 RUN npm run build --workspace=apps/web
 
