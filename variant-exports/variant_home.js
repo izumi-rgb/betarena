@@ -269,9 +269,11 @@ const LiveCard = ({ league, status, team1, score1, team2, score2, odds, selected
           />
         ))}
       </div>
-      <div style={{ display: 'block', textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94A3B8' }}>
-        <Link to={detailHref} style={{ color: '#94A3B8', textDecoration: 'none' }}>{markets > 0 ? `+${markets} Markets` : 'View Match'}</Link>
-      </div>
+      {markets > 0 && (
+        <div style={{ display: 'block', textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94A3B8' }}>
+          <Link to={detailHref} style={{ color: '#94A3B8', textDecoration: 'none' }}>+{markets} Markets</Link>
+        </div>
+      )}
     </div>
   );
 };

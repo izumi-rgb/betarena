@@ -439,6 +439,157 @@ export function normalizeApiBaseball(raw: unknown): LiveEvent | null {
 }
 
 // ---------------------------------------------------------------------------
+// API-Rugby  (v1.rugby.api-sports.io)
+// Same structure as hockey: { id, date, status, league, teams, scores }
+// status.short: NS, 1H, 2H, HT, FT, AET, AP
+// scores.home/away: number
+// ---------------------------------------------------------------------------
+
+export function normalizeApiRugby(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const status = r.status as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const teams = r.teams as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+  if (!teams) return null;
+
+  const statusShort = str(get(status, 'short'));
+  const statusMap: Record<string, EventStatus> = {
+    NS: 'pre', '1H': 'live', '2H': 'live', HT: 'ht',
+    FT: 'ft', AET: 'ft', AP: 'ft',
+  };
+
+  return {
+    id: `rg-${str(r.id)}`,
+    sport: 'rugby',
+    competition: {
+      id: str(get(league, 'id')),
+      name: str(get(league, 'name'), 'Rugby'),
+      logo: str(get(league, 'logo')) || undefined,
+    },
+    homeTeam: {
+      id: str(get(teams, 'home.id')),
+      name: str(get(teams, 'home.name'), 'Home'),
+      badge: str(get(teams, 'home.logo')) || undefined,
+    },
+    awayTeam: {
+      id: str(get(teams, 'away.id')),
+      name: str(get(teams, 'away.name'), 'Away'),
+      badge: str(get(teams, 'away.logo')) || undefined,
+    },
+    score: { home: num(scores?.home), away: num(scores?.away) },
+    clock: str(get(status, 'long')) || statusShort,
+    status: statusMap[statusShort] || 'pre',
+    startTime: new Date(str(r.date)),
+    markets: [],
+    source: 'api-rugby',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// API-Handball  (v1.handball.api-sports.io)
+// status.short: NS, 1H, 2H, HT, FT, AET, AP, POST
+// scores.home/away: number
+// ---------------------------------------------------------------------------
+
+export function normalizeApiHandball(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const status = r.status as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const teams = r.teams as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+  if (!teams) return null;
+
+  const statusShort = str(get(status, 'short'));
+  const statusMap: Record<string, EventStatus> = {
+    NS: 'pre', '1H': 'live', '2H': 'live', HT: 'ht',
+    FT: 'ft', AET: 'ft', AP: 'ft', POST: 'ft',
+  };
+
+  return {
+    id: `hb-${str(r.id)}`,
+    sport: 'handball',
+    competition: {
+      id: str(get(league, 'id')),
+      name: str(get(league, 'name'), 'Handball'),
+      logo: str(get(league, 'logo')) || undefined,
+    },
+    homeTeam: {
+      id: str(get(teams, 'home.id')),
+      name: str(get(teams, 'home.name'), 'Home'),
+      badge: str(get(teams, 'home.logo')) || undefined,
+    },
+    awayTeam: {
+      id: str(get(teams, 'away.id')),
+      name: str(get(teams, 'away.name'), 'Away'),
+      badge: str(get(teams, 'away.logo')) || undefined,
+    },
+    score: { home: num(scores?.home), away: num(scores?.away) },
+    clock: str(get(status, 'long')) || statusShort,
+    status: statusMap[statusShort] || 'pre',
+    startTime: new Date(str(r.date)),
+    markets: [],
+    source: 'api-handball',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// API-Volleyball  (v1.volleyball.api-sports.io)
+// status.short: NS, S1, S2, S3, S4, S5, FT, POST, CANC
+// scores.home/away: number (sets won)
+// ---------------------------------------------------------------------------
+
+export function normalizeApiVolleyball(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const status = r.status as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const teams = r.teams as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+  if (!teams) return null;
+
+  const statusShort = str(get(status, 'short'));
+  const isSet = /^S\d$/.test(statusShort);
+  let eventStatus: EventStatus = 'pre';
+  if (statusShort === 'NS') eventStatus = 'pre';
+  else if (isSet) eventStatus = 'live';
+  else if (['FT', 'POST', 'AWD'].includes(statusShort)) eventStatus = 'ft';
+  else if (['CANC', 'PST'].includes(statusShort)) eventStatus = 'pre';
+  else eventStatus = 'live';
+
+  return {
+    id: `vb-${str(r.id)}`,
+    sport: 'volleyball',
+    competition: {
+      id: str(get(league, 'id')),
+      name: str(get(league, 'name'), 'Volleyball'),
+      logo: str(get(league, 'logo')) || undefined,
+    },
+    homeTeam: {
+      id: str(get(teams, 'home.id')),
+      name: str(get(teams, 'home.name'), 'Home'),
+      badge: str(get(teams, 'home.logo')) || undefined,
+    },
+    awayTeam: {
+      id: str(get(teams, 'away.id')),
+      name: str(get(teams, 'away.name'), 'Away'),
+      badge: str(get(teams, 'away.logo')) || undefined,
+    },
+    score: { home: num(scores?.home), away: num(scores?.away) },
+    clock: str(get(status, 'long')) || statusShort,
+    status: eventStatus,
+    startTime: new Date(str(r.date)),
+    markets: [],
+    source: 'api-volleyball',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // OddsPapi / The Odds API
 // Docs: https://the-odds-api.com/liveapi/guides/v4/
 // Each event has { bookmakers: [{ title, markets: [{ key, outcomes }] }] }

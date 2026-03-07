@@ -6,7 +6,7 @@ import type { LiveEvent } from '@/hooks/useLiveEvents';
 
 function eventHref(event: LiveEvent): string {
   const sport = String(event.sport || '').toLowerCase().trim();
-  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing', 'ice_hockey', 'baseball'].includes(sport)) {
+  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing', 'ice_hockey', 'baseball', 'rugby', 'handball', 'volleyball'].includes(sport)) {
     return `/sports/${sport}/${event.id}`;
   }
   return '/sports';

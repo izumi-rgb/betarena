@@ -4,6 +4,9 @@ import * as apiFootball from './providers/api-football';
 import * as apiBasketball from './providers/api-basketball';
 import * as apiHockey from './providers/api-hockey';
 import * as apiBaseball from './providers/api-baseball';
+import * as apiRugby from './providers/api-rugby';
+import * as apiHandball from './providers/api-handball';
+import * as apiVolleyball from './providers/api-volleyball';
 import * as espn from './providers/espn-hidden';
 import * as oddspapi from './providers/oddspapi';
 import * as theOddsApi from './providers/the-odds-api';
@@ -14,6 +17,9 @@ import {
   normalizeApiBasketball,
   normalizeApiHockey,
   normalizeApiBaseball,
+  normalizeApiRugby,
+  normalizeApiHandball,
+  normalizeApiVolleyball,
   normalizeESPN,
   normalizeCricket,
   normalizeOddsMarkets,
@@ -57,6 +63,15 @@ const MAJOR_LEAGUES = new Set([
   // Baseball
   'mlb', 'mlb - spring training', 'npb', 'kbo',
   'world baseball classic', 'liga mexicana',
+  // Rugby
+  'six nations', 'rugby championship', 'super rugby', 'premiership',
+  'top 14', 'united rugby championship', 'pro14', 'champions cup',
+  // Handball
+  'bundesliga', 'liga asobal', 'starligue', 'ehf champions league',
+  'nla', 'superliga', 'handbollsligan',
+  // Volleyball
+  'superliga', 'serie a', 'bundesliga', 'plusliga',
+  'cev champions league', 'vnl', 'superlega',
 ]);
 
 function isMajorLeague(raw: unknown): boolean {
@@ -311,6 +326,48 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
     }
   } catch (err) {
     logger.warn('Failed to fetch baseball', { error: (err as Error).message });
+  }
+
+  // API-Rugby (same APISPORTS_KEY, separate 100/day limit)
+  try {
+    const rugbyGames = await apiRugby.getTodayGames();
+    if (Array.isArray(rugbyGames)) {
+      for (const raw of rugbyGames) {
+        if (!isMajorLeague(raw)) continue;
+        const event = normalizeApiRugby(raw);
+        if (event) events.push(event);
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch rugby', { error: (err as Error).message });
+  }
+
+  // API-Handball (same APISPORTS_KEY, separate 100/day limit)
+  try {
+    const handballGames = await apiHandball.getTodayGames();
+    if (Array.isArray(handballGames)) {
+      for (const raw of handballGames) {
+        if (!isMajorLeague(raw)) continue;
+        const event = normalizeApiHandball(raw);
+        if (event) events.push(event);
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch handball', { error: (err as Error).message });
+  }
+
+  // API-Volleyball (same APISPORTS_KEY, separate 100/day limit)
+  try {
+    const volleyballGames = await apiVolleyball.getTodayGames();
+    if (Array.isArray(volleyballGames)) {
+      for (const raw of volleyballGames) {
+        if (!isMajorLeague(raw)) continue;
+        const event = normalizeApiVolleyball(raw);
+        if (event) events.push(event);
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch volleyball', { error: (err as Error).message });
   }
 
   // ESPN — only fetch sports NOT already covered by API-Sports providers.

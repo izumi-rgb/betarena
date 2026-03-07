@@ -532,6 +532,9 @@ const SPORT_CONFIG = {
   hockey: { color: '#06B6D4', emoji: '🏒', label: 'Hockey' },
   ice_hockey: { color: '#06B6D4', emoji: '🏒', label: 'Ice Hockey' },
   baseball: { color: '#EF4444', emoji: '⚾', label: 'Baseball' },
+  rugby: { color: '#059669', emoji: '🏉', label: 'Rugby' },
+  handball: { color: '#D946EF', emoji: '🤾', label: 'Handball' },
+  volleyball: { color: '#F97316', emoji: '🏐', label: 'Volleyball' },
   boxing: { color: '#F97316', emoji: '🥊', label: 'Boxing' },
   esports: { color: '#A855F7', emoji: '🎮', label: 'Esports' },
 };
@@ -727,7 +730,7 @@ const InPlayPage = () => {
     if (!useLiveData) return sportFilters;
     const total = liveEvents.length;
     const filters = [{ label: `All Sports ${total}`, active: true }];
-    const order = ['football', 'tennis', 'basketball', 'ice_hockey', 'baseball', 'cricket', 'hockey', 'boxing', 'esports'];
+    const order = ['football', 'tennis', 'basketball', 'ice_hockey', 'baseball', 'cricket', 'rugby', 'handball', 'volleyball', 'hockey', 'boxing', 'esports'];
     order.forEach(sport => {
       if (sportCounts[sport]) {
         const cfg = SPORT_CONFIG[sport] || {};
@@ -746,7 +749,7 @@ const InPlayPage = () => {
   const dynamicSportMap = useMemo(() => {
     if (!useLiveData) return SPORT_MAP;
     const map = ['all'];
-    const order = ['football', 'tennis', 'basketball', 'ice_hockey', 'baseball', 'cricket', 'hockey', 'boxing', 'esports'];
+    const order = ['football', 'tennis', 'basketball', 'ice_hockey', 'baseball', 'cricket', 'rugby', 'handball', 'volleyball', 'hockey', 'boxing', 'esports'];
     order.forEach(sport => { if (sportCounts[sport]) map.push(sport); });
     Object.keys(sportCounts).forEach(sport => { if (!order.includes(sport)) map.push(sport); });
     return map;
