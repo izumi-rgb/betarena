@@ -51,6 +51,8 @@ function getInitials(name) {
 const Sidebar = ({ balance, username }) => {
   const initials = getInitials(username);
   const { pathname } = useLocation();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const logout = useAuthStore((s) => s.logout);
   return (
     <aside className="w-[240px] bg-[#111827] border-r border-[#1E293B] flex flex-col shrink-0 z-20">
       <div className="h-16 flex items-center px-6 border-b border-[#1E293B]">
@@ -109,14 +111,38 @@ const Sidebar = ({ balance, username }) => {
         </Link>
       </nav>
 
-      <div className="p-4 border-t border-[#1E293B]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#00C37B] border border-[#1E293B] flex items-center justify-center text-[#0B0E1A] font-bold text-sm">{initials}</div>
-          <div className="flex flex-col">
-            <span className="text-white text-[13px] font-bold">{username || '...'}</span>
+      <div className="p-4 border-t border-[#1E293B] relative">
+        <button
+          onClick={() => setShowUserMenu((v) => !v)}
+          className="flex items-center gap-3 w-full text-left hover:bg-[#1A2235] rounded-lg p-1.5 -m-1.5 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-full bg-[#00C37B] border border-[#1E293B] flex items-center justify-center text-[#0B0E1A] font-bold text-sm shrink-0">{initials}</div>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-white text-[13px] font-bold truncate">{username || '...'}</span>
             <span className="text-[#00C37B] text-[11px] font-mono">{balance !== undefined ? `${balance.toFixed(2)} CR` : '...'}</span>
           </div>
-        </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#64748B] shrink-0">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {showUserMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+            <div className="absolute bottom-full left-4 right-4 mb-2 z-50 bg-[#1A2235] border border-[#1E293B] rounded-lg shadow-xl overflow-hidden">
+              <button
+                onClick={() => { setShowUserMenu(false); logout().then(() => { window.location.href = '/login'; }); }}
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-[13px] font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );
