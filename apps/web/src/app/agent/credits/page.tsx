@@ -174,7 +174,7 @@ export default function AgentCreditsPage() {
             <div className="h-full rounded-xl border border-[#1E293B] border-l-4 border-l-[#00C37B] bg-[#111827] p-6">
               <p className="mb-1 text-sm text-[#94A3B8]">Total Credit Balance</p>
               <p className="font-mono text-[36px] font-bold leading-tight text-[#00C37B]">
-                {fmt(balance)}
+                {fmt(balance ?? 0)}
                 <span className="ml-2 text-[18px] font-semibold text-[#94A3B8]">CR</span>
               </p>
               <div className="mt-4 flex items-center gap-4 text-sm">

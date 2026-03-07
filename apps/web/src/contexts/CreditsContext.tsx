@@ -70,7 +70,7 @@ export function CreditsProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const formatBalance = useCallback(
-    (value?: number) => formatCurrency(value ?? balance),
+    (value?: number) => formatCurrency(value ?? (balance ?? 0)),
     [balance],
   );
 
@@ -110,7 +110,7 @@ export function CreditsProvider({ children }: { children: React.ReactNode }) {
   return (
     <CreditsContext.Provider
       value={{
-        balance,
+        balance: balance ?? 0,
         isLoading,
         isAuthenticated,
         formatBalance,

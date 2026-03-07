@@ -37,7 +37,7 @@ function DesktopBetSlip() {
 
   const totalOdds = useMemo(() => picks.reduce((acc, p) => acc * p.odds, 1), [picks]);
   const potential = (Number(stake) || 0) * (picks.length ? totalOdds : 0);
-  const enoughBalance = balance >= (Number(stake) || 0);
+  const enoughBalance = (balance ?? 0) >= (Number(stake) || 0);
 
   const formatCurrency = (value: number) =>
     `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CR`;
@@ -122,7 +122,7 @@ function DesktopBetSlip() {
         </div>
         {isAuthenticated && (
           <div className="space-y-1 text-xs text-[#94A3B8]">
-            <div className="flex justify-between"><span>Balance</span><span className="font-mono text-white">{formatCurrency(balance)}</span></div>
+            <div className="flex justify-between"><span>Balance</span><span className="font-mono text-white">{formatCurrency(balance ?? 0)}</span></div>
             <div className="flex justify-between"><span>Total Odds</span><span className="font-mono text-white">{picks.length ? totalOdds.toFixed(2) : '0.00'}</span></div>
             <div className="flex justify-between"><span>Potential Return</span><span className="font-mono text-[#00C37B]">{potential.toFixed(2)}</span></div>
           </div>

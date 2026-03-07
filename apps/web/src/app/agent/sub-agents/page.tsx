@@ -92,7 +92,7 @@ export default function SubAgentHierarchyPage() {
                   Total Allocation
                 </div>
                 <div className="font-mono text-[18px] font-bold text-[#00C37B]">
-                  {fmt(balance)}{' '}
+                  {fmt(balance ?? 0)}{' '}
                   <span className="text-[12px] font-normal text-[#64748B]">CR</span>
                 </div>
               </div>
