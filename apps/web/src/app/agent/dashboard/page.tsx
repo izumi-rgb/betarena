@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
+import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
 import Link from 'next/link';
 
 /* ── Types ─────────────────────────────────────────────────── */
@@ -62,7 +63,7 @@ function CreateMemberModal({
   }, [nickname, onSuccess]);
 
   const handleCopy = (field: 'username' | 'password', value: string) => {
-    navigator.clipboard.writeText(value).catch(() => {});
+    copyText(value);
     setCopied(field);
     setTimeout(() => setCopied(null), 2000);
   };

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
 
 type SubAgent = {
   id: number;
@@ -400,7 +401,7 @@ export default function AgentsPage() {
                     <label className="text-[#64748B] text-[10px] font-bold uppercase tracking-wider">Username</label>
                     <div className="mt-1 bg-[#1A2235] border border-[#1E293B] rounded-lg px-4 py-3 font-mono text-white text-sm flex justify-between items-center">
                       {createdAgent.username}
-                      <button onClick={() => navigator.clipboard.writeText(createdAgent.username)} className="text-[#64748B] hover:text-[#00C37B]">
+                      <button onClick={() => copyText(createdAgent.username)} className="text-[#64748B] hover:text-[#00C37B]">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                       </button>
                     </div>
@@ -409,7 +410,7 @@ export default function AgentsPage() {
                     <label className="text-[#64748B] text-[10px] font-bold uppercase tracking-wider">Password</label>
                     <div className="mt-1 bg-[#1A2235] border border-[#1E293B] rounded-lg px-4 py-3 font-mono text-white text-sm flex justify-between items-center">
                       {createdAgent.password}
-                      <button onClick={() => navigator.clipboard.writeText(createdAgent.password)} className="text-[#64748B] hover:text-[#00C37B]">
+                      <button onClick={() => copyText(createdAgent.password)} className="text-[#64748B] hover:text-[#00C37B]">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                       </button>
                     </div>

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
+import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -98,9 +99,9 @@ function CreateMemberModal({
     }
   }, [nickname, onCreated]);
 
-  const copyToClipboard = useCallback(
+  const handleCopyField = useCallback(
     (text: string, field: string) => {
-      navigator.clipboard.writeText(text).then(() => {
+      copyText(text).then(() => {
         setCopiedField(field);
         setTimeout(() => setCopiedField(null), 2000);
       });
@@ -198,7 +199,7 @@ function CreateMemberModal({
                       {value}
                     </span>
                     <button
-                      onClick={() => copyToClipboard(value, field)}
+                      onClick={() => handleCopyField(value, field)}
                       className="rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-3 py-2 text-[12px] text-[#94A3B8] transition hover:border-[#00C37B] hover:text-[#00C37B]"
                     >
                       {copiedField === field ? 'Copied!' : 'Copy'}
