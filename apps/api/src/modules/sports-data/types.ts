@@ -1,4 +1,4 @@
-export type SportKey = 'football' | 'basketball' | 'tennis' | 'cricket' | 'golf' | 'esports';
+export type SportKey = 'football' | 'basketball' | 'tennis' | 'cricket' | 'golf' | 'esports' | 'ice_hockey' | 'baseball';
 
 export type EventStatus = 'pre' | 'live' | 'ht' | 'ft';
 

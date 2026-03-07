@@ -1,12 +1,23 @@
 import logger from '../../config/logger';
 import redis from '../../config/redis';
 import * as apiFootball from './providers/api-football';
+import * as apiBasketball from './providers/api-basketball';
+import * as apiHockey from './providers/api-hockey';
+import * as apiBaseball from './providers/api-baseball';
 import * as espn from './providers/espn-hidden';
 import * as oddspapi from './providers/oddspapi';
 import * as theOddsApi from './providers/the-odds-api';
 import * as cricketData from './providers/cricket-data';
 import * as theSportsDb from './providers/thesportsdb';
-import { normalizeApiFootball, normalizeESPN, normalizeCricket, normalizeOddsMarkets } from './normalizer/normalizer';
+import {
+  normalizeApiFootball,
+  normalizeApiBasketball,
+  normalizeApiHockey,
+  normalizeApiBaseball,
+  normalizeESPN,
+  normalizeCricket,
+  normalizeOddsMarkets,
+} from './normalizer/normalizer';
 import type { LiveEvent, Market } from './types';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +38,8 @@ const TIER_1_LEAGUES = new Set([
 const TIER_2_LEAGUES = new Set([
   'mls', 'eredivisie', 'primeira liga', 'scottish premiership',
   'college basketball', 'college football',
+  'ncaa', 'ahl', 'g league', 'world baseball classic',
+  'euroleague', 'liga acb',
 ]);
 
 function getLeagueTier(event: LiveEvent): 1 | 2 | 3 {
@@ -188,7 +201,7 @@ function findOddsForEvent(event: LiveEvent, lookup: Map<string, Market[]>): Mark
 // Main aggregation
 // ---------------------------------------------------------------------------
 
-export async function getLiveEvents(): Promise<LiveEvent[]> {
+export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: LiveEvent[] }> {
   const events: LiveEvent[] = [];
 
   try {
@@ -203,9 +216,53 @@ export async function getLiveEvents(): Promise<LiveEvent[]> {
     logger.warn('Failed to fetch live football', { error: (err as Error).message });
   }
 
+  // API-Basketball (same APISPORTS_KEY, separate 100/day limit)
+  try {
+    const basketballGames = await apiBasketball.getTodayGames();
+    if (Array.isArray(basketballGames)) {
+      for (const raw of basketballGames) {
+        const event = normalizeApiBasketball(raw);
+        if (event) events.push(event);
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch basketball', { error: (err as Error).message });
+  }
+
+  // API-Hockey (same APISPORTS_KEY, separate 100/day limit)
+  try {
+    const hockeyGames = await apiHockey.getTodayGames();
+    if (Array.isArray(hockeyGames)) {
+      for (const raw of hockeyGames) {
+        const event = normalizeApiHockey(raw);
+        if (event) events.push(event);
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch hockey', { error: (err as Error).message });
+  }
+
+  // API-Baseball (same APISPORTS_KEY, separate 100/day limit)
+  try {
+    const baseballGames = await apiBaseball.getTodayGames();
+    if (Array.isArray(baseballGames)) {
+      for (const raw of baseballGames) {
+        const event = normalizeApiBaseball(raw);
+        if (event) events.push(event);
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch baseball', { error: (err as Error).message });
+  }
+
+  // ESPN — only fetch sports NOT already covered by API-Sports providers.
+  // API-Sports gives richer data (logos, proper statuses, period scores).
+  // ESPN is still useful for EPL/UCL soccer fallback if API-Football quota runs out.
+  const espnSkipSports = new Set(['nba', 'nhl', 'mlb']); // covered by API-Sports above
   try {
     const espnData = await espn.getAllUSScoreboards();
     for (const [sport, data] of Object.entries(espnData)) {
+      if (espnSkipSports.has(sport)) continue; // already have richer data
       if (!data || typeof data !== 'object') continue;
       const espnEvents = (data as Record<string, unknown>).events as unknown[] | undefined;
       if (!Array.isArray(espnEvents)) continue;
@@ -248,10 +305,18 @@ export async function getLiveEvents(): Promise<LiveEvent[]> {
     logger.warn('Odds enrichment failed (non-fatal)', { error: (err as Error).message });
   }
 
-  const filtered = filterAndSortEvents(events);
-  const stable = await mergeWithDisplayList(filtered);
-  logger.info(`getLiveEvents: ${events.length} raw → ${filtered.length} filtered → ${stable.length} stable`);
-  return stable;
+  // Split by status: live/ht vs pre-match
+  const liveOnly = events.filter(e => e.status === 'live' || e.status === 'ht');
+  const upcoming = events.filter(e => e.status === 'pre');
+
+  const filteredLive = filterAndSortEvents(liveOnly);
+  const stableLive = await mergeWithDisplayList(filteredLive);
+
+  upcoming.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const cappedUpcoming = upcoming.slice(0, MAX_EVENTS_TO_SHOW);
+
+  logger.info(`getLiveEvents: ${events.length} raw → ${stableLive.length} live + ${cappedUpcoming.length} upcoming`);
+  return { live: stableLive, upcoming: cappedUpcoming };
 }
 
 export async function getEvent(eventId: string): Promise<LiveEvent | null> {

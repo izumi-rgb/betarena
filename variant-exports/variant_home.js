@@ -270,7 +270,7 @@ const LiveCard = ({ league, status, team1, score1, team2, score2, odds, selected
         ))}
       </div>
       <div style={{ display: 'block', textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94A3B8' }}>
-        <Link to={detailHref} style={{ color: '#94A3B8', textDecoration: 'none' }}>+{markets} Markets</Link>
+        <Link to={detailHref} style={{ color: '#94A3B8', textDecoration: 'none' }}>{markets > 0 ? `+${markets} Markets` : 'View Match'}</Link>
       </div>
     </div>
   );
@@ -469,8 +469,11 @@ const App = () => {
     const fetchLive = async () => {
       try {
         const res = await apiGet('/api/sports/live');
-        if (!cancelled && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setLiveApiEvents(res.data);
+        if (!cancelled && res.success) {
+          const events = Array.isArray(res.data) ? res.data : (res.data?.live || []);
+          if (events.length > 0) {
+            setLiveApiEvents(events);
+          }
         }
       } catch (_) {
         // keep fallback data on error
@@ -559,7 +562,7 @@ const App = () => {
         : [{ label: '1', value: '—' }, { label: '2', value: '—' }];
     }
 
-    const hrefMap = { football: '/sports/football', basketball: '/sports/basketball', tennis: '/sports/tennis', cricket: '/sports/cricket', esports: '/sports/esports', golf: '/sports/golf' };
+    const hrefMap = { football: '/sports/football', basketball: '/sports/basketball', tennis: '/sports/tennis', cricket: '/sports/cricket', esports: '/sports/esports', golf: '/sports/golf', ice_hockey: '/sports/ice_hockey', baseball: '/sports/baseball' };
 
     return {
       id: event.id || index,
@@ -568,7 +571,7 @@ const App = () => {
       status,
       team1, score1, team2, score2,
       odds,
-      markets: mkts.length || 1,
+      markets: mkts.length,
       detailHref: `${hrefMap[sportLower] || '/sports'}/${event.id || index}`,
     };
   };

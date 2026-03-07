@@ -6,10 +6,23 @@ import type { LiveEvent } from '@/hooks/useLiveEvents';
 
 function eventHref(event: LiveEvent): string {
   const sport = String(event.sport || '').toLowerCase().trim();
-  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing'].includes(sport)) {
+  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing', 'ice_hockey', 'baseball'].includes(sport)) {
     return `/sports/${sport}/${event.id}`;
   }
   return '/sports';
+}
+
+function statusBadge(status?: string) {
+  switch (status) {
+    case 'pre':
+      return { label: 'UPCOMING', bg: 'bg-[#F59E0B]/20', text: 'text-[#F59E0B]' };
+    case 'ht':
+      return { label: 'HT', bg: 'bg-[#F59E0B]/20', text: 'text-[#F59E0B]' };
+    case 'ft':
+      return { label: 'FT', bg: 'bg-[#64748B]/20', text: 'text-[#94A3B8]' };
+    default:
+      return { label: 'LIVE', bg: 'bg-[#EF4444]/20', text: 'text-[#EF4444]' };
+  }
 }
 
 export function LiveMatchCard({ event }: { event: LiveEvent }) {
@@ -24,8 +37,8 @@ export function LiveMatchCard({ event }: { event: LiveEvent }) {
         <div className="text-xs uppercase tracking-wide text-[#64748B]">
           {event.sport || 'Sport'} · {event.league || 'League'}
         </div>
-        <span className="rounded bg-[#EF4444]/20 px-2 py-0.5 text-[10px] font-bold text-[#EF4444]">
-          LIVE
+        <span className={`rounded ${statusBadge(event.status).bg} px-2 py-0.5 text-[10px] font-bold ${statusBadge(event.status).text}`}>
+          {statusBadge(event.status).label}
         </span>
       </div>
       <Link href={eventHref(event)} className="text-sm font-semibold text-white hover:text-[#00C37B]">

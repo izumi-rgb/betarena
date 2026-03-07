@@ -273,36 +273,43 @@ const LiveMatchCard = ({ event, onOddClick, selections }) => {
   const matchLabel = `${homeName} vs ${awayName}`;
   const isSelected = (label) => selections.some(s => s.selKey === `${matchId}-${label}`);
   const odds = getEventOdds(event);
-  const hasDraw = ['football', 'hockey'].includes(event.sport);
+  const hasDraw = ['football'].includes(event.sport);
   const marketsLen = (event.markets || []).length;
-  const marketCount = marketsLen > 10 ? marketsLen : 15 + ((event.id || '').length * 7) % 130;
 
   return (
     <div className="bg-[#1A2235] border border-[#1E293B] border-l-[3px] rounded-xl p-5 relative overflow-hidden" style={{ borderLeftColor: config.color, transition: 'all 0.2s ease' }}>
       <div className="flex justify-between items-center mb-4 text-[12px]">
         <div className="flex items-center gap-2">
-          <PulsingDot color="red" size="w-1.5 h-1.5" />
-          <span className="text-[#EF4444] font-extrabold uppercase tracking-wide">
-            {event.status === 'ht' ? 'HT' : event.status === 'ft' ? 'FT' : 'LIVE'}
+          <PulsingDot color={event.status === 'pre' ? 'green' : 'red'} size="w-1.5 h-1.5" />
+          <span className={`font-extrabold uppercase tracking-wide ${event.status === 'pre' ? 'text-[#F59E0B]' : 'text-[#EF4444]'}`}>
+            {event.status === 'pre' ? 'UPCOMING' : event.status === 'ht' ? 'HT' : event.status === 'ft' ? 'FT' : 'LIVE'}
           </span>
-          {event.clock && <span className="text-[#EF4444] font-mono font-bold">{event.clock}</span>}
+          {event.status !== 'pre' && event.clock && <span className="text-[#EF4444] font-mono font-bold">{event.clock}</span>}
         </div>
         <div className="flex items-center gap-2 text-[#94A3B8]">
           <span>{event.competition?.name || config.label}</span>
           <span className="text-[14px]">{config.emoji}</span>
         </div>
-        <div className="flex items-center gap-2 text-[#64748B] hover:text-[#00C37B] cursor-pointer transition-colors">
-          <span className="font-medium">+{marketCount} markets</span>
-        </div>
+        {marketsLen > 0 && <div className="flex items-center gap-2 text-[#64748B] hover:text-[#00C37B] cursor-pointer transition-colors">
+          <span className="font-medium">+{marketsLen} markets</span>
+        </div>}
       </div>
 
       <div className="flex items-center justify-between mb-5 px-4">
         <span className="text-white font-bold text-[18px] w-1/3 text-right truncate">{homeName}</span>
-        <div className="flex items-center gap-3">
-          <div className="bg-[#0B0E1A] border border-[#1E293B] rounded px-3 py-1 font-mono text-[22px] font-bold text-white shadow-inner">{event.score?.home ?? 0}</div>
-          <span className="text-[#334155] font-bold text-[14px]">vs</span>
-          <div className="bg-[#0B0E1A] border border-[#1E293B] rounded px-3 py-1 font-mono text-[22px] font-bold text-white shadow-inner">{event.score?.away ?? 0}</div>
-        </div>
+        {event.status === 'pre' ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[#F59E0B] font-mono font-bold text-[16px]">
+              {new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="bg-[#0B0E1A] border border-[#1E293B] rounded px-3 py-1 font-mono text-[22px] font-bold text-white shadow-inner">{event.score?.home ?? 0}</div>
+            <span className="text-[#334155] font-bold text-[14px]">vs</span>
+            <div className="bg-[#0B0E1A] border border-[#1E293B] rounded px-3 py-1 font-mono text-[22px] font-bold text-white shadow-inner">{event.score?.away ?? 0}</div>
+          </div>
+        )}
         <span className="text-white font-bold text-[18px] w-1/3 text-left truncate">{awayName}</span>
       </div>
 
@@ -514,7 +521,7 @@ const sportFilters = [
   { label: '+ More', active: false },
 ];
 
-const SPORT_MAP = ['all', 'football', 'tennis', 'basketball', 'cricket', 'hockey', 'boxing', 'esports'];
+const SPORT_MAP = ['all', 'football', 'tennis', 'basketball', 'cricket', 'hockey', 'ice_hockey', 'baseball', 'boxing', 'esports'];
 const CARD_SPORT = { FootballCard: 'football', TennisCard: 'tennis', BasketballCard: 'basketball', CricketCard: 'cricket' };
 
 const SPORT_CONFIG = {
@@ -523,6 +530,7 @@ const SPORT_CONFIG = {
   tennis: { color: '#F59E0B', emoji: '🎾', label: 'Tennis' },
   cricket: { color: '#8B5CF6', emoji: '🏏', label: 'Cricket' },
   hockey: { color: '#06B6D4', emoji: '🏒', label: 'Hockey' },
+  ice_hockey: { color: '#06B6D4', emoji: '🏒', label: 'Ice Hockey' },
   baseball: { color: '#EF4444', emoji: '⚾', label: 'Baseball' },
   boxing: { color: '#F97316', emoji: '🥊', label: 'Boxing' },
   esports: { color: '#A855F7', emoji: '🎮', label: 'Esports' },
@@ -632,6 +640,7 @@ const InPlayPage = () => {
   const { balance, formatBalance, placeBet: apiPlaceBet, isAuthenticated } = useCredits();
 
   const [liveEvents, setLiveEvents] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveError, setLiveError] = useState(false);
 
@@ -640,8 +649,11 @@ const InPlayPage = () => {
     const fetchLive = async () => {
       try {
         const res = await apiGet('/api/sports/live');
-        if (mounted && res.success && Array.isArray(res.data)) {
-          setLiveEvents(res.data);
+        if (mounted && res.success) {
+          const live = Array.isArray(res.data) ? res.data : (res.data?.live || []);
+          const upcoming = Array.isArray(res.data) ? [] : (res.data?.upcoming || []);
+          setLiveEvents(live);
+          setUpcomingEvents(upcoming);
           setLiveError(false);
         }
       } catch {
@@ -701,20 +713,21 @@ const InPlayPage = () => {
     finally { setIsPlacing(false); }
   }, [selections, stake, balance, isAuthenticated, isPlacing, apiPlaceBet, navigate]);
 
-  const useLiveData = liveEvents.length > 0;
+  const allEvents = useMemo(() => [...liveEvents, ...upcomingEvents], [liveEvents, upcomingEvents]);
+  const useLiveData = allEvents.length > 0;
 
   const sportCounts = useMemo(() => {
     if (!useLiveData) return {};
     const counts = {};
-    liveEvents.forEach(e => { counts[e.sport] = (counts[e.sport] || 0) + 1; });
+    allEvents.forEach(e => { counts[e.sport] = (counts[e.sport] || 0) + 1; });
     return counts;
-  }, [liveEvents, useLiveData]);
+  }, [allEvents, useLiveData]);
 
   const dynamicSportFilters = useMemo(() => {
     if (!useLiveData) return sportFilters;
     const total = liveEvents.length;
     const filters = [{ label: `All Sports ${total}`, active: true }];
-    const order = ['football', 'tennis', 'basketball', 'cricket', 'hockey', 'boxing', 'esports'];
+    const order = ['football', 'tennis', 'basketball', 'ice_hockey', 'baseball', 'cricket', 'hockey', 'boxing', 'esports'];
     order.forEach(sport => {
       if (sportCounts[sport]) {
         const cfg = SPORT_CONFIG[sport] || {};
@@ -728,12 +741,12 @@ const InPlayPage = () => {
       }
     });
     return filters;
-  }, [liveEvents, sportCounts, useLiveData]);
+  }, [allEvents, sportCounts, useLiveData]);
 
   const dynamicSportMap = useMemo(() => {
     if (!useLiveData) return SPORT_MAP;
     const map = ['all'];
-    const order = ['football', 'tennis', 'basketball', 'cricket', 'hockey', 'boxing', 'esports'];
+    const order = ['football', 'tennis', 'basketball', 'ice_hockey', 'baseball', 'cricket', 'hockey', 'boxing', 'esports'];
     order.forEach(sport => { if (sportCounts[sport]) map.push(sport); });
     Object.keys(sportCounts).forEach(sport => { if (!order.includes(sport)) map.push(sport); });
     return map;
@@ -748,6 +761,11 @@ const InPlayPage = () => {
     if (activeSportKey === 'all') return liveEvents;
     return liveEvents.filter(e => e.sport === activeSportKey);
   }, [liveEvents, activeSportKey, useLiveData]);
+
+  const filteredUpcomingEvents = useMemo(() => {
+    if (activeSportKey === 'all') return upcomingEvents;
+    return upcomingEvents.filter(e => e.sport === activeSportKey);
+  }, [upcomingEvents, activeSportKey]);
 
   if (liveLoading) return (
     <div className="flex-1 flex items-center justify-center bg-[#0B0E1A]">
@@ -775,7 +793,7 @@ const InPlayPage = () => {
             <h1 className="text-[22px] font-extrabold text-white tracking-tight">⚡ In-Play</h1>
             <div className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" style={customStyles.pulsingDot} />
           </div>
-          <div className="text-[#00C37B] text-[13px] font-medium">{useLiveData ? `${liveEvents.length} events live right now` : 'No live events right now'}</div>
+          <div className="text-[#00C37B] text-[13px] font-medium">{liveEvents.length > 0 ? `${liveEvents.length} events live right now` : upcomingEvents.length > 0 ? `${upcomingEvents.length} upcoming events` : 'No live events right now'}</div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wide">Auto-refresh</span>
@@ -801,26 +819,32 @@ const InPlayPage = () => {
 
       <div className="flex gap-6">
         <div className={`${selections.length > 0 ? 'w-[50%]' : 'w-[65%]'} flex flex-col gap-4 transition-all`}>
-          {useLiveData ? (
+          {filteredLiveEvents.length > 0 ? (
             <>
               {filteredLiveEvents.map(event => (
                 <LiveMatchCard key={event.id} event={event} onOddClick={onOddClick} selections={selections} />
               ))}
-              {filteredLiveEvents.length === 0 && (
-                <div className="text-center py-12 text-[#64748B]">
-                  <div className="text-[32px] mb-2">🔜</div>
-                  <div className="text-[14px]">No live events for this sport right now</div>
-                </div>
-              )}
-              <button className="w-full mt-2 py-3 border border-[#00C37B] text-[#00C37B] font-semibold text-[13px] rounded-lg hover:bg-[rgba(0,195,123,0.05)] transition-colors">
+              <div className="w-full mt-2 py-3 text-center text-[#64748B] text-[13px]">
                 {`Showing ${filteredLiveEvents.length} of ${liveEvents.length} live events`}
-              </button>
+              </div>
             </>
           ) : (
-            <div className="text-center py-12 text-[#64748B]">
-              <div className="text-[32px] mb-2">🔜</div>
-              <div className="text-[14px]">No live events right now</div>
+            <div className="text-center py-8 text-[#64748B]">
+              <div className="text-[32px] mb-2">📺</div>
+              <div className="text-[14px]">No live matches right now — check back soon</div>
             </div>
+          )}
+
+          {filteredUpcomingEvents.length > 0 && (
+            <>
+              <div className="flex items-center gap-3 mt-6 mb-3">
+                <h2 className="text-[16px] font-bold text-white">Upcoming</h2>
+                <span className="text-[12px] text-[#F59E0B] font-medium">{filteredUpcomingEvents.length} events</span>
+              </div>
+              {filteredUpcomingEvents.map(event => (
+                <LiveMatchCard key={`upcoming-${event.id}`} event={event} onOddClick={onOddClick} selections={selections} />
+              ))}
+            </>
           )}
         </div>
 

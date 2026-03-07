@@ -32,8 +32,9 @@ export type LiveEvent = {
 };
 
 async function fetchLiveEvents(): Promise<LiveEvent[]> {
-  const response = await apiGet<LiveEvent[]>('/api/sports/live');
-  return response.data || [];
+  const response = await apiGet<LiveEvent[] | { live: LiveEvent[]; upcoming: LiveEvent[] }>('/api/sports/live');
+  if (Array.isArray(response.data)) return response.data;
+  return response.data?.live || [];
 }
 
 export function useLiveEvents() {

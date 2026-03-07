@@ -67,7 +67,7 @@ export function LiveEventsPage() {
 
         {!isLoading && !error && filtered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#1E293B] bg-[#111827] p-8 text-center text-[#94A3B8]">
-            No live matches found for this filter.
+            No live matches right now — check back soon
           </div>
         ) : null}
 

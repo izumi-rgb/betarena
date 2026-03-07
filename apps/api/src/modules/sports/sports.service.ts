@@ -190,12 +190,11 @@ export async function getEventMarkets(eventId: number) {
 
 export async function getLiveEvents() {
   try {
-    const liveEvents = await SportsDataService.getLiveEvents();
-    return liveEvents;
+    return await SportsDataService.getLiveEvents();
   } catch (err) {
     logger.warn('SportsDataService.getLiveEvents failed', {
       error: (err as Error).message,
     });
   }
-  return [];
+  return { live: [], upcoming: [] };
 }

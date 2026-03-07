@@ -113,8 +113,8 @@ export function normalizeESPN(raw: unknown, sport: string): LiveEvent | null {
   const sportMap: Record<string, SportKey> = {
     nba: 'basketball',
     nfl: 'football',
-    nhl: 'football',
-    mlb: 'football',
+    nhl: 'ice_hockey',
+    mlb: 'baseball',
     epl: 'football',
     ucl: 'football',
   };
@@ -197,6 +197,205 @@ export function normalizeCricket(raw: unknown): LiveEvent | null {
     startTime: new Date(str(r.dateTimeGMT)),
     markets: [],
     source: 'cricketdata',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// API-Basketball  (v1.basketball.api-sports.io)
+// Each game has { id, date, status, league, country, teams, scores }
+// status.short: NS, Q1, Q2, Q3, Q4, HT, OT, BT, AOT, FT, POST
+// scores.home/away: { quarter_1..4, over_time, total }
+// ---------------------------------------------------------------------------
+
+export function normalizeApiBasketball(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const r = raw as Record<string, unknown>;
+  const status = r.status as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const teams = r.teams as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+
+  if (!teams) return null;
+
+  const statusShort = str(get(status, 'short'));
+
+  const statusMap: Record<string, EventStatus> = {
+    NS: 'pre',
+    Q1: 'live', Q2: 'live', Q3: 'live', Q4: 'live',
+    OT: 'live', BT: 'live',
+    HT: 'ht',
+    AOT: 'ft', FT: 'ft', POST: 'ft',
+  };
+
+  const homeScore = scores?.home as Record<string, unknown> | undefined;
+  const awayScore = scores?.away as Record<string, unknown> | undefined;
+
+  const timer = str(get(status, 'timer'));
+  const statusLong = str(get(status, 'long'));
+  let clock = '';
+  if (timer) clock = `${timer}'`;
+  else if (statusLong) clock = statusLong;
+  else clock = statusShort;
+
+  return {
+    id: `bb-${str(r.id)}`,
+    sport: 'basketball',
+    competition: {
+      id: str(get(league, 'id')),
+      name: str(get(league, 'name'), 'Basketball'),
+      logo: str(get(league, 'logo')) || undefined,
+    },
+    homeTeam: {
+      id: str(get(teams, 'home.id')),
+      name: str(get(teams, 'home.name'), 'Home'),
+      badge: str(get(teams, 'home.logo')) || undefined,
+    },
+    awayTeam: {
+      id: str(get(teams, 'away.id')),
+      name: str(get(teams, 'away.name'), 'Away'),
+      badge: str(get(teams, 'away.logo')) || undefined,
+    },
+    score: {
+      home: num(get(homeScore, 'total')),
+      away: num(get(awayScore, 'total')),
+    },
+    clock,
+    status: statusMap[statusShort] || 'pre',
+    startTime: new Date(str(r.date)),
+    markets: [],
+    source: 'api-basketball',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// API-Hockey  (v1.hockey.api-sports.io)
+// Each game has { id, date, status, league, country, teams, scores, periods }
+// status.short: NS, P1, P2, P3, OT, PT, BT, FT, AOT, AP
+// scores.home/away: number (total)
+// ---------------------------------------------------------------------------
+
+export function normalizeApiHockey(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const r = raw as Record<string, unknown>;
+  const status = r.status as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const teams = r.teams as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+
+  if (!teams) return null;
+
+  const statusShort = str(get(status, 'short'));
+
+  const statusMap: Record<string, EventStatus> = {
+    NS: 'pre',
+    P1: 'live', P2: 'live', P3: 'live',
+    OT: 'live', PT: 'live', BT: 'ht',
+    FT: 'ft', AOT: 'ft', AP: 'ft',
+  };
+
+  const timer = str(r.timer);
+  const statusLong = str(get(status, 'long'));
+  let clock = '';
+  if (timer) clock = `${timer}'`;
+  else if (statusLong) clock = statusLong;
+  else clock = statusShort;
+
+  return {
+    id: `hk-${str(r.id)}`,
+    sport: 'ice_hockey',
+    competition: {
+      id: str(get(league, 'id')),
+      name: str(get(league, 'name'), 'Hockey'),
+      logo: str(get(league, 'logo')) || undefined,
+    },
+    homeTeam: {
+      id: str(get(teams, 'home.id')),
+      name: str(get(teams, 'home.name'), 'Home'),
+      badge: str(get(teams, 'home.logo')) || undefined,
+    },
+    awayTeam: {
+      id: str(get(teams, 'away.id')),
+      name: str(get(teams, 'away.name'), 'Away'),
+      badge: str(get(teams, 'away.logo')) || undefined,
+    },
+    score: {
+      home: num(scores?.home),
+      away: num(scores?.away),
+    },
+    clock,
+    status: statusMap[statusShort] || 'pre',
+    startTime: new Date(str(r.date)),
+    markets: [],
+    source: 'api-hockey',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// API-Baseball  (v1.baseball.api-sports.io)
+// Each game has { id, date, status, league, country, teams, scores }
+// status.short: NS, IN1-IN9, FT, POST, CANC, PST, AWD, WO
+// scores.home/away: { hits, errors, innings: {...}, total }
+// ---------------------------------------------------------------------------
+
+export function normalizeApiBaseball(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const r = raw as Record<string, unknown>;
+  const status = r.status as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const teams = r.teams as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+
+  if (!teams) return null;
+
+  const statusShort = str(get(status, 'short'));
+
+  // IN1..IN9 and extra innings are live
+  const isInning = /^IN\d+$/.test(statusShort);
+  let eventStatus: EventStatus = 'pre';
+  if (statusShort === 'NS') eventStatus = 'pre';
+  else if (isInning) eventStatus = 'live';
+  else if (['FT', 'POST', 'AWD', 'WO'].includes(statusShort)) eventStatus = 'ft';
+  else if (['CANC', 'PST'].includes(statusShort)) eventStatus = 'pre';
+  else eventStatus = 'live'; // default to live for unknown active statuses
+
+  const homeScore = scores?.home as Record<string, unknown> | undefined;
+  const awayScore = scores?.away as Record<string, unknown> | undefined;
+
+  const statusLong = str(get(status, 'long'));
+
+  return {
+    id: `bs-${str(r.id)}`,
+    sport: 'baseball',
+    competition: {
+      id: str(get(league, 'id')),
+      name: str(get(league, 'name'), 'Baseball'),
+      logo: str(get(league, 'logo')) || undefined,
+    },
+    homeTeam: {
+      id: str(get(teams, 'home.id')),
+      name: str(get(teams, 'home.name'), 'Home'),
+      badge: str(get(teams, 'home.logo')) || undefined,
+    },
+    awayTeam: {
+      id: str(get(teams, 'away.id')),
+      name: str(get(teams, 'away.name'), 'Away'),
+      badge: str(get(teams, 'away.logo')) || undefined,
+    },
+    score: {
+      home: num(get(homeScore, 'total')),
+      away: num(get(awayScore, 'total')),
+    },
+    clock: statusLong || statusShort,
+    status: eventStatus,
+    startTime: new Date(str(r.date)),
+    markets: [],
+    source: 'api-baseball',
     lastUpdated: new Date(),
   };
 }
