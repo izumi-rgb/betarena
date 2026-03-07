@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
 
@@ -99,7 +99,7 @@ export default function CreditsPage() {
     },
   });
 
-  const transactions = ledgerData?.transactions || [];
+  const transactions = useMemo(() => ledgerData?.transactions || [], [ledgerData?.transactions]);
   const total = ledgerData?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 

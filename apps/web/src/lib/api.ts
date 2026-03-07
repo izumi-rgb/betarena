@@ -18,7 +18,7 @@ let failedQueue: Array<{
   reject: (err: unknown) => void;
 }> = [];
 
-function processQueue(error: unknown, _token: string | null) {
+function processQueue(error: unknown) {
   failedQueue.forEach((p) => {
     if (error) p.reject(error);
     else p.resolve();
@@ -69,11 +69,11 @@ api.interceptors.response.use(
         { withCredentials: true },
       );
 
-      processQueue(null, null);
+      processQueue(null);
       // Retry with fresh cookie (set by the refresh response)
       return api(original);
     } catch (refreshError) {
-      processQueue(refreshError, null);
+      processQueue(refreshError);
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
