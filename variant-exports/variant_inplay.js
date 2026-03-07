@@ -633,6 +633,7 @@ const InPlayPage = () => {
 
   const [liveEvents, setLiveEvents] = useState([]);
   const [liveLoading, setLiveLoading] = useState(true);
+  const [liveError, setLiveError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -641,9 +642,10 @@ const InPlayPage = () => {
         const res = await apiGet('/api/sports/live');
         if (mounted && res.success && Array.isArray(res.data)) {
           setLiveEvents(res.data);
+          setLiveError(false);
         }
       } catch {
-        // API unavailable — hardcoded fallback will render
+        if (mounted) setLiveError(true);
       } finally {
         if (mounted) setLiveLoading(false);
       }
@@ -746,6 +748,24 @@ const InPlayPage = () => {
     if (activeSportKey === 'all') return liveEvents;
     return liveEvents.filter(e => e.sport === activeSportKey);
   }, [liveEvents, activeSportKey, useLiveData]);
+
+  if (liveLoading) return (
+    <div className="flex-1 flex items-center justify-center bg-[#0B0E1A]">
+      <div className="text-center text-[#64748B]">
+        <div className="animate-spin w-8 h-8 border-2 border-[#00C37B] border-t-transparent rounded-full mx-auto mb-3" />
+        <div className="text-[13px]">Loading live events...</div>
+      </div>
+    </div>
+  );
+
+  if (liveError) return (
+    <div className="flex-1 flex items-center justify-center bg-[#0B0E1A]">
+      <div className="text-center text-[#64748B]">
+        <div className="text-[32px] mb-2">⚠️</div>
+        <div className="text-[14px]">Unable to load live events.</div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex-1 overflow-y-auto p-8 pt-6">
