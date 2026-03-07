@@ -171,6 +171,44 @@ export function normalizeCricket(raw: unknown): LiveEvent | null {
   const away = teamInfo?.[1] as Record<string, unknown> | undefined;
   const scoreArr = r.score as unknown[] | undefined;
 
+  // Determine status: check matchEnded first
+  let eventStatus: EventStatus = 'pre';
+  if (r.matchEnded) {
+    eventStatus = 'ft';
+  } else if (r.matchStarted) {
+    // Check for innings break / stumps — still in-progress but paused
+    const statusStr = str(r.status, '').toLowerCase();
+    if (statusStr.includes('innings break') || statusStr.includes('stumps')) {
+      eventStatus = 'ht'; // treat as half-time equivalent
+    } else {
+      eventStatus = 'live';
+    }
+  }
+
+  // Align scores to teams by matching inning strings to team names
+  const homeName = str(get(home, 'name'), '');
+  const awayName = str(get(away, 'name'), '');
+  let homeRuns = 0;
+  let awayRuns = 0;
+
+  if (Array.isArray(scoreArr)) {
+    for (const inn of scoreArr) {
+      const inning = inn as Record<string, unknown>;
+      const inningLabel = str(inning.inning, '').toLowerCase();
+      const runs = num(inning.r);
+      // Match inning label to team — take the latest (highest) runs per team
+      if (homeName && inningLabel.includes(homeName.toLowerCase().split(' ')[0])) {
+        homeRuns = Math.max(homeRuns, runs);
+      } else if (awayName && inningLabel.includes(awayName.toLowerCase().split(' ')[0])) {
+        awayRuns = Math.max(awayRuns, runs);
+      } else {
+        // Fallback: assign by position
+        if (homeRuns === 0) homeRuns = runs;
+        else if (awayRuns === 0) awayRuns = runs;
+      }
+    }
+  }
+
   return {
     id: str(r.id),
     sport: 'cricket',
@@ -180,20 +218,20 @@ export function normalizeCricket(raw: unknown): LiveEvent | null {
     },
     homeTeam: {
       id: str(get(home, 'shortname')),
-      name: str(get(home, 'name'), 'Team A'),
+      name: homeName || 'Team A',
       badge: str(get(home, 'img')) || undefined,
     },
     awayTeam: {
       id: str(get(away, 'shortname')),
-      name: str(get(away, 'name'), 'Team B'),
+      name: awayName || 'Team B',
       badge: str(get(away, 'img')) || undefined,
     },
     score: {
-      home: num(get(scoreArr?.[0], 'r')),
-      away: num(get(scoreArr?.[1], 'r')),
+      home: homeRuns,
+      away: awayRuns,
     },
     clock: str(r.status, ''),
-    status: r.matchStarted ? 'live' : 'pre',
+    status: eventStatus,
     startTime: new Date(str(r.dateTimeGMT)),
     markets: [],
     source: 'cricketdata',

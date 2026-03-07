@@ -42,6 +42,33 @@ const TIER_2_LEAGUES = new Set([
   'euroleague', 'liga acb',
 ]);
 
+// Major leagues for API-Sports basketball/hockey/baseball.
+// Without this filter, we get 400+ minor-league games that drown out other sports.
+const MAJOR_LEAGUES = new Set([
+  // Basketball
+  'nba', 'ncaa', 'ncaa women', 'euroleague', 'eurocup', 'liga acb',
+  'bbl', 'nbl', 'nbl1', 'lnb', 'serie a', 'bsk', 'super league',
+  'basketball bundesliga', 'turkish league', 'vtb united league',
+  'nba - g league', 'chinese cba',
+  // Hockey
+  'nhl', 'khl', 'shl', 'liiga', 'nla', 'del', 'extraliga',
+  'ahl', 'ohl', 'whl', 'qmjhl', 'allsvenskan',
+  // Baseball
+  'mlb', 'mlb - spring training', 'npb', 'kbo',
+  'world baseball classic', 'liga mexicana',
+]);
+
+function isMajorLeague(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const r = raw as Record<string, unknown>;
+  const league = r.league as Record<string, unknown> | undefined;
+  const name = String(league?.name ?? '').toLowerCase();
+  for (const major of MAJOR_LEAGUES) {
+    if (name.includes(major)) return true;
+  }
+  return false;
+}
+
 function getLeagueTier(event: LiveEvent): 1 | 2 | 3 {
   const name = (event.competition?.name ?? '').toLowerCase();
   for (const t1 of TIER_1_LEAGUES) if (name.includes(t1)) return 1;
@@ -217,10 +244,12 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
   }
 
   // API-Basketball (same APISPORTS_KEY, separate 100/day limit)
+  // Filter to major leagues to avoid 400+ minor league games drowning other sports
   try {
     const basketballGames = await apiBasketball.getTodayGames();
     if (Array.isArray(basketballGames)) {
       for (const raw of basketballGames) {
+        if (!isMajorLeague(raw)) continue;
         const event = normalizeApiBasketball(raw);
         if (event) events.push(event);
       }
@@ -234,6 +263,7 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
     const hockeyGames = await apiHockey.getTodayGames();
     if (Array.isArray(hockeyGames)) {
       for (const raw of hockeyGames) {
+        if (!isMajorLeague(raw)) continue;
         const event = normalizeApiHockey(raw);
         if (event) events.push(event);
       }
@@ -247,6 +277,7 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
     const baseballGames = await apiBaseball.getTodayGames();
     if (Array.isArray(baseballGames)) {
       for (const raw of baseballGames) {
+        if (!isMajorLeague(raw)) continue;
         const event = normalizeApiBaseball(raw);
         if (event) events.push(event);
       }
