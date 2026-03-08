@@ -26,6 +26,7 @@ import {
   normalizeCricket,
   normalizeCricbuzz,
   normalizeFotmob,
+  normalizeOddsApiIo,
   normalizeOddsMarkets,
 } from './normalizer/normalizer';
 import type { LiveEvent, Market } from './types';
@@ -508,6 +509,37 @@ export async function refreshAggregateCache(): Promise<{ live: LiveEvent[]; upco
     }
   } catch (err) {
     logger.warn('Failed to fetch cricket data', { error: (err as Error).message });
+  }
+
+  // odds-api.io — fills gaps for ALL sports when API-Sports providers are capped.
+  // Has 200+ live events across football, basketball, tennis, hockey, handball, etc.
+  // No extra API call — reuses the live events already fetched for odds enrichment.
+  // Dedup by normalized team name pairs to avoid duplicates with existing providers.
+  try {
+    const existingKeys = new Set<string>();
+    for (const e of events) {
+      const key = `${e.homeTeam.name.toLowerCase()}||${e.awayTeam.name.toLowerCase()}`;
+      existingKeys.add(key);
+    }
+
+    const ioEvents = await oddsApiIo.getLiveEvents();
+    let ioAdded = 0;
+    if (Array.isArray(ioEvents)) {
+      for (const raw of ioEvents) {
+        const event = normalizeOddsApiIo(raw);
+        if (!event) continue;
+        const key = `${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`;
+        if (existingKeys.has(key)) continue;
+        events.push(event);
+        existingKeys.add(key);
+        ioAdded++;
+      }
+    }
+    if (ioAdded > 0) {
+      logger.info(`odds-api.io: added ${ioAdded} events not covered by other providers`);
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch odds-api.io events', { error: (err as Error).message });
   }
 
   // Enrich events with real odds from The Odds API

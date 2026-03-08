@@ -761,6 +761,77 @@ export function normalizeFotmob(raw: unknown): LiveEvent | null {
 }
 
 // ---------------------------------------------------------------------------
+// odds-api.io  (api.odds-api.io/v3)
+// Each event: { id, home, away, date, status, sport, league, scores }
+// Used as both event source (all sports) and odds source.
+// ---------------------------------------------------------------------------
+
+const ODDS_API_IO_SPORT_MAP: Record<string, SportKey> = {
+  'football': 'football',
+  'basketball': 'basketball',
+  'tennis': 'tennis',
+  'baseball': 'baseball',
+  'ice-hockey': 'ice_hockey',
+  'cricket': 'cricket',
+  'handball': 'handball',
+  'volleyball': 'volleyball',
+  'rugby': 'rugby',
+  'esports': 'esports',
+  'american-football': 'football', // map to football SportKey
+};
+
+export function normalizeOddsApiIo(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const r = raw as Record<string, unknown>;
+  const home = str(r.home);
+  const away = str(r.away);
+  if (!home || !away) return null;
+
+  const sport = r.sport as Record<string, unknown> | undefined;
+  const league = r.league as Record<string, unknown> | undefined;
+  const scores = r.scores as Record<string, unknown> | undefined;
+
+  const sportSlug = str(get(sport, 'slug'), 'football');
+  const mappedSport = ODDS_API_IO_SPORT_MAP[sportSlug];
+  if (!mappedSport) return null; // skip unsupported sports (darts, floorball, etc.)
+
+  const status = str(r.status, '');
+  let eventStatus: EventStatus = 'pre';
+  if (status === 'live') eventStatus = 'live';
+  else if (status === 'settled') eventStatus = 'ft';
+  else if (status === 'pending') eventStatus = 'pre';
+  else if (status === 'cancelled') return null; // skip cancelled
+
+  return {
+    id: `oio-${str(r.id)}`,
+    sport: mappedSport,
+    competition: {
+      id: str(get(league, 'slug')),
+      name: str(get(league, 'name'), str(get(sport, 'name'), 'Unknown')),
+    },
+    homeTeam: {
+      id: str(r.homeId),
+      name: home,
+    },
+    awayTeam: {
+      id: str(r.awayId),
+      name: away,
+    },
+    score: {
+      home: num(get(scores, 'home')),
+      away: num(get(scores, 'away')),
+    },
+    clock: eventStatus === 'live' ? 'LIVE' : '',
+    status: eventStatus,
+    startTime: r.date ? new Date(str(r.date)) : new Date(),
+    markets: [],
+    source: 'odds-api-io',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // OddsPapi / The Odds API
 // Docs: https://the-odds-api.com/liveapi/guides/v4/
 // Each event has { bookmakers: [{ title, markets: [{ key, outcomes }] }] }
