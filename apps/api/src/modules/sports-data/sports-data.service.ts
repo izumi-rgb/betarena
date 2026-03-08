@@ -11,6 +11,7 @@ import * as espn from './providers/espn-hidden';
 import * as oddspapi from './providers/oddspapi';
 import * as theOddsApi from './providers/the-odds-api';
 import * as cricketData from './providers/cricket-data';
+import * as cricbuzz from './providers/cricbuzz';
 import * as theSportsDb from './providers/thesportsdb';
 import {
   normalizeApiFootball,
@@ -22,6 +23,7 @@ import {
   normalizeApiVolleyball,
   normalizeESPN,
   normalizeCricket,
+  normalizeCricbuzz,
   normalizeOddsMarkets,
 } from './normalizer/normalizer';
 import type { LiveEvent, Market } from './types';
@@ -418,12 +420,30 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
     logger.warn('Failed to fetch ESPN data', { error: (err as Error).message });
   }
 
+  // Cricket: try Cricbuzz first (richer data, no daily limit), fall back to CricketData
+  const cricketIds = new Set<string>();
+  try {
+    const cbMatches = await cricbuzz.getAllLiveMatches();
+    if (Array.isArray(cbMatches)) {
+      for (const raw of cbMatches) {
+        const event = normalizeCricbuzz(raw);
+        if (event) {
+          events.push(event);
+          cricketIds.add(event.id);
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch Cricbuzz data', { error: (err as Error).message });
+  }
+
+  // CricketData fallback — only add matches not already covered by Cricbuzz
   try {
     const cricketMatches = await cricketData.getCurrentMatches();
     if (Array.isArray(cricketMatches)) {
       for (const raw of cricketMatches) {
         const event = normalizeCricket(raw);
-        if (event) events.push(event);
+        if (event && !cricketIds.has(event.id)) events.push(event);
       }
     }
   } catch (err) {

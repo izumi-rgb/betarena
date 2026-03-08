@@ -247,6 +247,81 @@ export function normalizeCricket(raw: unknown): LiveEvent | null {
 }
 
 // ---------------------------------------------------------------------------
+// Cricbuzz (via RapidAPI scraper)
+// Each match: { id, title, teams: [{team, run}], overview, timeAndPlace }
+// overview contains live status text from Cricbuzz
+// ---------------------------------------------------------------------------
+
+export function normalizeCricbuzz(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const r = raw as Record<string, unknown>;
+  const id = str(r.id);
+  const title = str(r.title, 'Cricket Match');
+  const teams = r.teams as Array<{ team?: string; run?: string }> | undefined;
+  const overview = str(r.overview, '').toLowerCase();
+
+  if (!teams || teams.length < 2) return null;
+
+  const homeName = str(teams[0]?.team, 'Team A');
+  const awayName = str(teams[1]?.team, 'Team B');
+
+  // Parse runs from strings like "256/4" or "125" → extract the number before /
+  function parseRuns(runStr?: string): number {
+    if (!runStr) return 0;
+    const match = runStr.match(/^(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+
+  const homeRuns = parseRuns(teams[0]?.run);
+  const awayRuns = parseRuns(teams[1]?.run);
+
+  // Status detection from overview text
+  let eventStatus: EventStatus = 'live';
+  if (overview.includes('won by') || overview.includes('match drawn') ||
+      overview.includes('match ended') || overview.includes('no result') ||
+      overview.includes('abandoned')) {
+    eventStatus = 'ft';
+  } else if (overview.includes('stumps') || overview.includes('innings break') ||
+             overview.includes('rain') || overview.includes('delayed') ||
+             overview.includes('tea') || overview.includes('lunch') ||
+             overview.includes('dinner') || overview.includes('bad light')) {
+    eventStatus = 'ht';
+  } else if (!overview || overview.includes('yet to bat') || overview.includes('toss')) {
+    eventStatus = 'pre';
+  }
+
+  const timeAndPlace = r.timeAndPlace as Record<string, string> | undefined;
+
+  return {
+    id: `cb-${id}`,
+    sport: 'cricket',
+    competition: {
+      id: `cb-${id}`,
+      name: title,
+    },
+    homeTeam: {
+      id: homeName.substring(0, 3).toUpperCase(),
+      name: homeName,
+    },
+    awayTeam: {
+      id: awayName.substring(0, 3).toUpperCase(),
+      name: awayName,
+    },
+    score: {
+      home: homeRuns,
+      away: awayRuns,
+    },
+    clock: str(r.overview, ''),
+    status: eventStatus,
+    startTime: timeAndPlace?.date ? new Date(timeAndPlace.date) : new Date(),
+    markets: [],
+    source: 'cricbuzz',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // API-Basketball  (v1.basketball.api-sports.io)
 // Each game has { id, date, status, league, country, teams, scores }
 // status.short: NS, Q1, Q2, Q3, Q4, HT, OT, BT, AOT, FT, POST
