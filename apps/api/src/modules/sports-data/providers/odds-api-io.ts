@@ -226,9 +226,33 @@ function transformToCompatibleFormat(event: OddsApiIoOddsResponse): NormalizedOd
 
 /**
  * Fetch all currently live events. Cached 3 minutes. Costs 1 API call.
+ * Falls back to 24h backup cache when quota is paused.
  */
 export async function getLiveEvents(): Promise<OddsApiIoEvent[]> {
-  return getCachedOrFetch(
+  const backupKey = `${PROVIDER}:backup:live-events`;
+
+  // If quota paused, serve from backup instead of hitting getCachedOrFetch
+  // (which would return [] and overwrite stale cache)
+  if (await isQuotaPaused()) {
+    try {
+      const backup = await redis.get(backupKey);
+      if (backup) {
+        const parsed = JSON.parse(backup) as OddsApiIoEvent[];
+        logger.debug(`${PROVIDER}: serving ${parsed.length} live events from backup (quota paused)`);
+        return parsed;
+      }
+    } catch { /* fall through */ }
+    // Also try the primary cache (may still be valid)
+    try {
+      const cached = await redis.get(`${PROVIDER}:live-events`);
+      if (cached) {
+        return JSON.parse(cached) as OddsApiIoEvent[];
+      }
+    } catch { /* fall through */ }
+    return [];
+  }
+
+  const events = await getCachedOrFetch(
     `${PROVIDER}:live-events`,
     LIVE_EVENTS_TTL,
     async () => {
@@ -237,7 +261,16 @@ export async function getLiveEvents(): Promise<OddsApiIoEvent[]> {
       logger.info(`${PROVIDER}: ${data.length} live events`);
       return data;
     },
-  ) as Promise<OddsApiIoEvent[]>;
+  ) as OddsApiIoEvent[];
+
+  // Store backup for quota-pause fallback
+  if (events.length > 0) {
+    try {
+      await redis.setex(backupKey, BACKUP_TTL, JSON.stringify(events));
+    } catch { /* non-fatal */ }
+  }
+
+  return events;
 }
 
 /**
