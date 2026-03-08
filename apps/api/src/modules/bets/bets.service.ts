@@ -5,7 +5,7 @@ import { combinations, SYSTEM_BET_TYPES, calculatePlaceOdds, isQuarterLine, getS
 import { emitToUser } from '../../utils/socketEvents';
 
 interface BetSelection {
-  event_id: number;
+  event_id: number | string;
   market_type: string;
   selection_name: string;
   odds: number;
@@ -30,27 +30,43 @@ async function snapshotOdds(selections: BetSelection[]) {
   let totalOdds = 1;
 
   for (const sel of selections) {
+    // Try DB lookup first (for seeded/persisted events)
     const oddsRow = await db('odds')
       .where({ event_id: sel.event_id, market_type: sel.market_type })
       .first();
 
-    if (!oddsRow) throw new Error(`ODDS_NOT_FOUND:${sel.event_id}:${sel.market_type}`);
+    if (oddsRow) {
+      // DB odds found — use server-side odds (prevents manipulation)
+      const parsedSelections = typeof oddsRow.selections === 'string'
+        ? JSON.parse(oddsRow.selections)
+        : oddsRow.selections;
 
-    const parsedSelections = typeof oddsRow.selections === 'string'
-      ? JSON.parse(oddsRow.selections)
-      : oddsRow.selections;
+      const matchedSel = parsedSelections.find((s: any) => s.name === sel.selection_name);
+      if (!matchedSel) throw new Error(`SELECTION_NOT_FOUND:${sel.selection_name}`);
 
-    const matchedSel = parsedSelections.find((s: any) => s.name === sel.selection_name);
-    if (!matchedSel) throw new Error(`SELECTION_NOT_FOUND:${sel.selection_name}`);
+      snapshot.push({
+        event_id: sel.event_id,
+        market_type: sel.market_type,
+        selection_name: sel.selection_name,
+        odds_at_placement: matchedSel.odds,
+      });
+      totalOdds *= matchedSel.odds;
+    } else {
+      // No DB row — this is a live API event. Accept client-provided odds
+      // with sanity checks (odds must be > 1.0 and < 10000).
+      const clientOdds = Number(sel.odds);
+      if (!clientOdds || clientOdds < 1.01 || clientOdds > 10000) {
+        throw new Error(`INVALID_ODDS:${sel.event_id}:${clientOdds}`);
+      }
 
-    snapshot.push({
-      event_id: sel.event_id,
-      market_type: sel.market_type,
-      selection_name: sel.selection_name,
-      odds_at_placement: matchedSel.odds,
-    });
-
-    totalOdds *= matchedSel.odds;
+      snapshot.push({
+        event_id: String(sel.event_id),
+        market_type: sel.market_type,
+        selection_name: sel.selection_name,
+        odds_at_placement: clientOdds,
+      });
+      totalOdds *= clientOdds;
+    }
   }
 
   return { snapshot, totalOdds };

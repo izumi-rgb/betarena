@@ -19,7 +19,7 @@ export type LiveMarket = {
 };
 
 export type LiveEvent = {
-  id: number;
+  id: number | string;
   sport?: string;
   league?: string;
   status?: string;
