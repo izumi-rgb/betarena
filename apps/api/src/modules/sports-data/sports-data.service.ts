@@ -469,7 +469,13 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
   }
 
   // Split by status: only truly live events (not paused/ht like stumps, breaks)
-  const liveOnly = events.filter(e => e.status === 'live' && e.markets.length > 0);
+  // Allow events without odds only if they're from tier-1/2 leagues (don't show minor events with no odds)
+  const liveOnly = events.filter(e => {
+    if (e.status !== 'live') return false;
+    if (e.markets.length > 0) return true;
+    // Allow odds-less events from major leagues (cricket tests, MLB, WBC, etc.)
+    return getLeagueTier(e) <= 2;
+  });
   const upcoming = events.filter(e => e.status === 'pre');
 
   const filteredLive = filterAndSortEvents(liveOnly);
