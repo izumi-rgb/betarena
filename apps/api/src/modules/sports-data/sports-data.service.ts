@@ -601,9 +601,25 @@ export async function refreshAggregateCache(): Promise<{ live: LiveEvent[]; upco
 
   const result = { live: stableLive, upcoming: cappedUpcoming };
 
-  // Store in Redis aggregate cache
+  // Store in Redis aggregate cache — but don't overwrite good data with empty results
   try {
-    await redis.setex(AGGREGATE_CACHE_KEY, AGGREGATE_CACHE_TTL, JSON.stringify(result));
+    if (stableLive.length > 0 || cappedUpcoming.length > 0) {
+      await redis.setex(AGGREGATE_CACHE_KEY, AGGREGATE_CACHE_TTL, JSON.stringify(result));
+    } else {
+      // All providers rate-limited — preserve existing cache instead of writing empty
+      const existing = await redis.get(AGGREGATE_CACHE_KEY);
+      if (existing) {
+        const existingResult = JSON.parse(existing);
+        const existingLive = existingResult?.live?.length || 0;
+        if (existingLive > 0) {
+          logger.info('refreshAggregateCache: preserving existing cache (all providers rate-limited)');
+          // Extend TTL to keep serving stale data
+          await redis.expire(AGGREGATE_CACHE_KEY, AGGREGATE_CACHE_TTL);
+          return existingResult;
+        }
+      }
+      await redis.setex(AGGREGATE_CACHE_KEY, AGGREGATE_CACHE_TTL, JSON.stringify(result));
+    }
   } catch (err) {
     logger.warn('Failed to write aggregate cache', { error: (err as Error).message });
   }

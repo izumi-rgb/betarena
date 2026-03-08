@@ -30,7 +30,7 @@ const BACKUP_TTL = 24 * 60 * 60;    // 24 hours backup
 const HOURLY_COUNTER_KEY = `${PROVIDER}:hourly-count`;
 const HOURLY_LIMIT = 90; // leave 10 buffer from 100/hour
 const QUOTA_PAUSE_KEY = `${PROVIDER}:quota-pause`;
-const QUOTA_PAUSE_TTL = 10 * 60; // 10 min pause when approaching limit
+const QUOTA_PAUSE_TTL = 35 * 60; // 35 min pause — matches actual API hourly reset window
 
 // Bookmakers to request (free plan: max 2)
 const BOOKMAKERS = 'Bet365,1xbet';
@@ -330,6 +330,12 @@ export async function getAllLiveOdds(
 
   const events = await getLiveEvents();
   if (events.length === 0) return [];
+
+  // Cross-populate: store events in backup for getLiveEvents() to use during quota pause
+  try {
+    const eventsBackupKey = `${PROVIDER}:backup:live-events`;
+    await redis.setex(eventsBackupKey, BACKUP_TTL, JSON.stringify(events));
+  } catch { /* non-fatal */ }
 
   // Filter to requested sports
   let filtered = events;
