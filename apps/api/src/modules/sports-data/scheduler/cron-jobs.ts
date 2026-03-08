@@ -96,16 +96,17 @@ async function refreshLiveScores(): Promise<void> {
 
 /**
  * Fetches live odds for each watched event and pushes updates.
+ * Uses The Odds API since OddsPapi doesn't support lookup by our event IDs.
  */
 async function refreshLiveOdds(): Promise<void> {
   const watched = await getWatchedEventIds();
   if (watched.length === 0) return;
 
   try {
+    // Use sports-data service which handles odds lookup internally
+    const { getMarkets } = await import('../sports-data.service');
     for (const eventId of watched) {
-      const raw = await oddspapi.getEventOdds(eventId);
-      if (!raw) continue;
-      const markets = normalizeOddsMarkets(raw, 'oddspapi');
+      const markets = await getMarkets(eventId);
       if (markets.length > 0) {
         getIO().to(`event:${eventId}`).emit('odds:update', { eventId, markets });
       }
@@ -116,19 +117,13 @@ async function refreshLiveOdds(): Promise<void> {
 }
 
 /**
- * Refreshes pre-match odds for the first 5 available sports.
+ * Refreshes pre-match odds by warming the OddsPapi cache for top sports.
  */
 async function refreshPreMatchOdds(): Promise<void> {
   try {
-    const sports = await oddspapi.getSports();
-    if (Array.isArray(sports)) {
-      for (const sport of sports.slice(0, 5)) {
-        const s = sport as Record<string, unknown>;
-        const id = s.sportId || s.key;
-        if (id) {
-          await oddspapi.getPreMatchOdds(String(id));
-        }
-      }
+    const sports: import('../providers/oddspapi').OddsPapiSport[] = ['soccer', 'basketball', 'baseball'];
+    for (const sport of sports) {
+      await oddspapi.getOddsForSport(sport);
     }
   } catch (err) {
     logger.error('Pre-match odds refresh failed', { error: (err as Error).message });

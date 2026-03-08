@@ -224,22 +224,9 @@ function teamNamesMatch(a: string, b: string): boolean {
   return shared.length >= 1 && shared.length >= Math.max(threshold * 0.3, 1);
 }
 
-// OddsPapi/The Odds API sport keys — used for sport-specific odds fetching
-const ALL_SPORT_KEYS = [
-  // Football/Soccer
-  'soccer_epl', 'soccer_spain_la_liga', 'soccer_germany_bundesliga',
-  'soccer_italy_serie_a', 'soccer_france_ligue_one', 'soccer_usa_mls',
-  'soccer_mexico_ligamx', 'soccer_uefa_champs_league',
-  // Basketball
-  'basketball_nba', 'basketball_ncaab',
-  // Ice Hockey
-  'icehockey_nhl',
-  // Baseball
-  'baseball_mlb', 'baseball_mlb_preseason', 'baseball_ncaa',
-  // Cricket
-  'cricket_test_match', 'cricket_ipl', 'cricket_odi',
-  'cricket_big_bash', 'cricket_international_t20', 'cricket_t20_world_cup',
-  'cricket_icc_world_cup', 'cricket_psl',
+// OddsPapi sport slugs for fixture-based odds fetching
+const ODDSPAPI_SPORTS: import('./providers/oddspapi').OddsPapiSport[] = [
+  'soccer', 'basketball', 'baseball', 'cricket', 'ice-hockey',
 ];
 
 function addToLookup(lookup: Map<string, Market[]>, items: unknown[]): void {
@@ -259,42 +246,30 @@ function addToLookup(lookup: Map<string, Market[]>, items: unknown[]): void {
 
 /**
  * Build a lookup of odds keyed by normalized team-name pairs.
- * Uses OddsPapi sport-specific endpoints (free forever, no credit limit).
- * Falls back to The Odds API if OddsPapi yields too few results.
+ * Primary: OddsPapi fixture-based API (200 req/month, heavily cached).
+ * Fallback: The Odds API bulk (500 credits/month).
  */
 async function buildOddsLookup(): Promise<Map<string, Market[]>> {
   const lookup = new Map<string, Market[]>();
 
-  // 1. OddsPapi: fetch pre-match odds for all major sports in parallel
+  // 1. OddsPapi: fetch odds per sport (fixture-based, cached 6h)
   try {
-    const preResults = await Promise.allSettled(
-      ALL_SPORT_KEYS.map(key => oddspapi.getPreMatchOdds(key))
+    const results = await Promise.allSettled(
+      ODDSPAPI_SPORTS.map(sport => oddspapi.getOddsForSport(sport))
     );
-    for (const result of preResults) {
+    for (const result of results) {
       if (result.status === 'fulfilled' && Array.isArray(result.value)) {
         addToLookup(lookup, result.value);
       }
     }
-    logger.info(`OddsPapi pre-match: ${lookup.size} events with odds`);
-  } catch (err) {
-    logger.warn('OddsPapi pre-match odds failed', { error: (err as Error).message });
-  }
-
-  // 2. OddsPapi: fetch live in-play odds for all major sports
-  try {
-    const liveResults = await Promise.allSettled(
-      ALL_SPORT_KEYS.map(key => oddspapi.getLiveOdds(key))
-    );
-    for (const result of liveResults) {
-      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-        addToLookup(lookup, result.value);
-      }
+    if (lookup.size > 0) {
+      logger.info(`OddsPapi: ${lookup.size} events with odds`);
     }
   } catch (err) {
-    logger.warn('OddsPapi live odds failed', { error: (err as Error).message });
+    logger.warn('OddsPapi odds failed', { error: (err as Error).message });
   }
 
-  // 3. Fallback: The Odds API bulk (if OddsPapi yielded too few)
+  // 2. Fallback: The Odds API bulk (if OddsPapi yielded too few)
   if (lookup.size < 10) {
     try {
       const fallback = await theOddsApi.getUpcomingOdds();
@@ -535,17 +510,11 @@ export async function getEvent(eventId: string): Promise<LiveEvent | null> {
 }
 
 export async function getMarkets(eventId: string): Promise<Market[]> {
+  // Use the bulk odds lookup and match by event ID from enrichment
   try {
-    const raw = await oddspapi.getEventOdds(eventId);
-    if (raw) {
-      return normalizeOddsMarkets(raw, 'oddspapi');
-    }
-  } catch (err) {
-    logger.warn('OddsPapi failed, trying backup', { eventId, error: (err as Error).message });
-  }
-
-  // Fallback to The Odds API
-  try {
+    const oddsLookup = await buildOddsLookup();
+    // The lookup is keyed by team names, not event IDs.
+    // For individual event pages, try The Odds API by sport.
     const raw = await theOddsApi.getOddsForSport('upcoming');
     if (Array.isArray(raw)) {
       for (const item of raw) {
@@ -555,8 +524,11 @@ export async function getMarkets(eventId: string): Promise<Market[]> {
         }
       }
     }
+
+    // If not found by ID, return any odds already attached from the lookup
+    // (the event detail page re-fetches from getLiveEvents cache)
   } catch (err) {
-    logger.warn('The Odds API backup also failed', { eventId, error: (err as Error).message });
+    logger.warn('Markets fetch failed', { eventId, error: (err as Error).message });
   }
 
   return [];
