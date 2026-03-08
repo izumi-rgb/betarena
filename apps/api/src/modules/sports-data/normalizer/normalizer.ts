@@ -176,9 +176,16 @@ export function normalizeCricket(raw: unknown): LiveEvent | null {
   if (r.matchEnded) {
     eventStatus = 'ft';
   } else if (r.matchStarted) {
-    // Check for innings break / stumps — still in-progress but paused
     const statusStr = str(r.status, '').toLowerCase();
-    if (statusStr.includes('innings break') || statusStr.includes('stumps')) {
+    // Finished states that API may not flag via matchEnded
+    if (statusStr.includes('match drawn') || statusStr.includes('match ended') ||
+        statusStr.includes('won by') || statusStr.includes('no result')) {
+      eventStatus = 'ft';
+    // Paused states — still in-progress but not actively playing
+    } else if (statusStr.includes('innings break') || statusStr.includes('stumps') ||
+               statusStr.includes('rain') || statusStr.includes('delayed') ||
+               statusStr.includes('tea') || statusStr.includes('lunch') ||
+               statusStr.includes('dinner') || statusStr.includes('bad light')) {
       eventStatus = 'ht'; // treat as half-time equivalent
     } else {
       eventStatus = 'live';

@@ -159,6 +159,7 @@ async function mergeWithDisplayList(fresh: LiveEvent[]): Promise<LiveEvent[]> {
 
   const now = Date.now();
   const STALE_MS = 5 * 60 * 1000; // 5 minutes
+  const MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours — hard cap for stale events (e.g. cricket)
   const freshById = new Map<string, LiveEvent>(
     fresh.map((e) => [e.id, { ...e, lastSeenInFeed: now }])
   );
@@ -166,7 +167,8 @@ async function mergeWithDisplayList(fresh: LiveEvent[]): Promise<LiveEvent[]> {
   // 1. Update-in-place for events already in the display list
   const merged: LiveEvent[] = [];
   for (const old of existing) {
-    if (old.status === 'ft') continue; // remove finished events
+    if (old.status === 'ft' || old.status === 'ht') continue; // remove finished/paused events
+    if (now - new Date(old.lastUpdated).getTime() > MAX_AGE_MS) continue; // force-evict stale events
     const updated = freshById.get(old.id);
     if (!updated && old.lastSeenInFeed && now - old.lastSeenInFeed > STALE_MS) continue; // drop ghost events
     merged.push(updated ?? old); // keep position; use fresh data if available
@@ -220,28 +222,54 @@ function teamNamesMatch(a: string, b: string): boolean {
   return shared.length >= 1 && shared.length >= Math.max(threshold * 0.3, 1);
 }
 
+// The Odds API sport keys for baseball and cricket
+const BASEBALL_SPORT_KEYS = ['baseball_mlb', 'baseball_mlb_preseason', 'baseball_ncaa'];
+const CRICKET_SPORT_KEYS = [
+  'cricket_test_match', 'cricket_ipl', 'cricket_odi',
+  'cricket_big_bash', 'cricket_international_t20', 'cricket_t20_world_cup',
+  'cricket_icc_world_cup', 'cricket_psl',
+];
+
+function addToLookup(lookup: Map<string, Market[]>, items: unknown[]): void {
+  for (const item of items) {
+    const r = item as Record<string, unknown>;
+    const home = String(r.home_team || '');
+    const away = String(r.away_team || '');
+    if (!home || !away) continue;
+
+    const markets = normalizeOddsMarkets(r, 'the-odds-api');
+    if (markets.length === 0) continue;
+
+    const key = `${normalizeTeamName(home)}||${normalizeTeamName(away)}`;
+    if (!lookup.has(key)) lookup.set(key, markets);
+  }
+}
+
 /**
  * Build a lookup of odds keyed by normalized team-name pairs.
- * Uses The Odds API "upcoming" bulk endpoint (single call, cached 30 min).
+ * Uses The Odds API "upcoming" bulk endpoint PLUS sport-specific calls
+ * for baseball and cricket to ensure coverage for those sports.
  */
 async function buildOddsLookup(): Promise<Map<string, Market[]>> {
   const lookup = new Map<string, Market[]>();
   try {
+    // 1. Bulk upcoming odds (all sports, h2h only)
     const upcoming = await theOddsApi.getUpcomingOdds();
-    if (!Array.isArray(upcoming)) return lookup;
-
-    for (const item of upcoming) {
-      const r = item as Record<string, unknown>;
-      const home = String(r.home_team || '');
-      const away = String(r.away_team || '');
-      if (!home || !away) continue;
-
-      const markets = normalizeOddsMarkets(r, 'the-odds-api');
-      if (markets.length === 0) continue;
-
-      const key = `${normalizeTeamName(home)}||${normalizeTeamName(away)}`;
-      lookup.set(key, markets);
+    if (Array.isArray(upcoming)) {
+      addToLookup(lookup, upcoming);
     }
+
+    // 2. Sport-specific calls for baseball and cricket (fills gaps the bulk call misses)
+    const sportKeys = [...BASEBALL_SPORT_KEYS, ...CRICKET_SPORT_KEYS];
+    const sportResults = await Promise.allSettled(
+      sportKeys.map(key => theOddsApi.getOddsForSport(key))
+    );
+    for (const result of sportResults) {
+      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+        addToLookup(lookup, result.value);
+      }
+    }
+
     logger.info(`Odds lookup built: ${lookup.size} events with odds`);
   } catch (err) {
     logger.warn('Failed to build odds lookup from The Odds API', {
@@ -420,8 +448,8 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
     logger.warn('Odds enrichment failed (non-fatal)', { error: (err as Error).message });
   }
 
-  // Split by status: live/ht vs pre-match
-  const liveOnly = events.filter(e => e.status === 'live' || e.status === 'ht');
+  // Split by status: only truly live events (not paused/ht like stumps, breaks)
+  const liveOnly = events.filter(e => e.status === 'live' && e.markets.length > 0);
   const upcoming = events.filter(e => e.status === 'pre');
 
   const filteredLive = filterAndSortEvents(liveOnly);

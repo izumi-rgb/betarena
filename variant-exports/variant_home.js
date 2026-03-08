@@ -715,15 +715,6 @@ const App = () => {
       <div style={customStyles.appLayout}>
         {/* Header */}
         <header style={customStyles.header}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '168px' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#00C37B' }}>
-              <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
-            </svg>
-            <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.4px', color: '#F1F5F9' }}>
-              BET<span style={{ color: '#00C37B' }}>ARENA</span>
-            </span>
-          </div>
-
           <nav style={{ display: 'flex', gap: '4px' }}>
             {navTabsWithHref.map(({ label, href }) => {
               const active = pathname === href || (href === '/sports' ? pathname.startsWith('/sports') : pathname.startsWith(href));

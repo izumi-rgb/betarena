@@ -65,7 +65,12 @@ export async function getCurrentMatches(): Promise<unknown> {
     CACHE_TTL.LIVE_CRICKET,
     async () => {
       const data = await guardedFetch<{ data: unknown[] }>('/currentMatches');
-      return data?.data ?? [];
+      const matches = data?.data ?? [];
+      // Filter out matches the API flags as ended (belt-and-suspenders with normalizer)
+      return matches.filter((m: unknown) => {
+        if (m && typeof m === 'object' && (m as Record<string, unknown>).matchEnded) return false;
+        return true;
+      });
     },
   );
 }
