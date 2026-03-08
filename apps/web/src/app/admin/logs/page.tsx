@@ -124,17 +124,8 @@ export default function AdminLogsPage() {
     <div className="flex flex-col overflow-hidden" style={{ height: '100vh' }}>
       {/* Page Header */}
       <header className="h-16 bg-[#111827] border-b border-[#1E293B] px-8 flex items-center justify-between shrink-0 z-50">
-        <div className="flex items-center gap-4 w-1/4">
-          <div className="flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-[#00C37B]">
-              <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
-            </svg>
-            <div className="text-[20px] font-extrabold tracking-tight text-white leading-none">
-              BET<span className="text-[#00C37B]">ARENA</span>
-            </div>
-          </div>
-          <div className="h-6 w-[1px] bg-[#1E293B] mx-2" />
-          <div className="text-[#64748B] text-[11px] font-semibold uppercase tracking-wider">System Logs Auditor</div>
+        <div className="flex items-center gap-2 w-1/4">
+          <div className="text-[#94A3B8] text-[13px] font-semibold uppercase tracking-wider">System Logs Auditor</div>
         </div>
 
         <div className="flex items-center gap-2">
