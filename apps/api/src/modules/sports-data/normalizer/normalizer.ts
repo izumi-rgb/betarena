@@ -126,6 +126,17 @@ export function normalizeESPN(raw: unknown, sport: string): LiveEvent | null {
     STATUS_FINAL: 'ft',
   };
 
+  let status: EventStatus = statusMap[statusType] || 'pre';
+  const startTime = new Date(str(get(r, 'date')));
+
+  // Safety: if startTime is > 6 hours ago and has a non-zero score, treat as finished
+  const ageMs = Date.now() - startTime.getTime();
+  const homeScore = num(get(home, 'score'));
+  const awayScore = num(get(away, 'score'));
+  if (ageMs > 6 * 60 * 60 * 1000 && (homeScore > 0 || awayScore > 0) && status !== 'ft') {
+    status = 'ft';
+  }
+
   return {
     id: str(get(r, 'id')),
     sport: sportMap[sport] || 'football',
@@ -144,12 +155,12 @@ export function normalizeESPN(raw: unknown, sport: string): LiveEvent | null {
       badge: str(get(away, 'team.logo')) || undefined,
     },
     score: {
-      home: num(get(home, 'score')),
-      away: num(get(away, 'score')),
+      home: homeScore,
+      away: awayScore,
     },
     clock: str(get(r, 'status.displayClock'), '0:00'),
-    status: statusMap[statusType] || 'pre',
-    startTime: new Date(str(get(r, 'date'))),
+    status,
+    startTime,
     markets: [],
     source: 'espn',
     lastUpdated: new Date(),
