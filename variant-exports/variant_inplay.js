@@ -1,7 +1,12 @@
+'use client';
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCredits } from '@/contexts/CreditsContext';
+import { useAuthStore } from '@/stores/authStore';
 import { apiGet } from '@/lib/api';
+import { MemberSidebarProfile } from '@/components/app/MemberSidebarProfile';
 
 const customStyles = {
   pulsingDot: {
@@ -339,8 +344,27 @@ const LiveMatchCard = ({ event, onOddClick, selections }) => {
   );
 };
 
+function getInitials(name) {
+  if (!name) return '??';
+  const parts = name.split(/[\s_]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
 const Sidebar = () => {
-  const { pathname } = useLocation();
+  const pathname = usePathname();
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logout = useAuthStore((state) => state.logout);
+  const { formatBalance } = useCredits();
+  const [showMenu, setShowMenu] = useState(false);
+
+  const handleLogout = async () => {
+    setShowMenu(false);
+    await logout();
+    router.push('/login');
+  };
 
   return (
     <aside className="w-[240px] bg-[#111827] border-r border-[#1E293B] flex flex-col shrink-0 z-20">
@@ -354,7 +378,7 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 py-6 px-3 space-y-1">
-        <Link to="/sports" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/sports' || pathname.startsWith('/sports/') ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
+        <Link href="/sports" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/sports' || pathname.startsWith('/sports/') ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
             <circle cx="12" cy="12" r="10" />
             <path d="M2 12h20" />
@@ -363,7 +387,7 @@ const Sidebar = () => {
           <span className="font-medium text-[14px]">Sports</span>
         </Link>
 
-        <Link to="/in-play" className={`flex items-center gap-3 px-3 py-2.5 rounded-md border-l-[3px] transition-colors relative ${pathname === '/in-play' ? 'bg-[#1A2235] text-white border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white border-transparent'}`} style={{ textDecoration: 'none' }}>
+        <Link href="/in-play" className={`flex items-center gap-3 px-3 py-2.5 rounded-md border-l-[3px] transition-colors relative ${pathname === '/in-play' ? 'bg-[#1A2235] text-white border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white border-transparent'}`} style={{ textDecoration: 'none' }}>
           <div className="absolute inset-0 bg-[#00C37B] opacity-5 rounded-md pointer-events-none" />
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#00C37B]">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -372,7 +396,7 @@ const Sidebar = () => {
           <span className="ml-auto bg-[#00C37B] text-[#0B0E1A] text-[10px] font-bold px-1.5 py-0.5 rounded">LIVE</span>
         </Link>
 
-        <Link to="/my-bets" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/my-bets' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
+        <Link href="/my-bets" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/my-bets' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -383,14 +407,14 @@ const Sidebar = () => {
           <span className="font-medium text-[14px]">My Bets</span>
         </Link>
 
-      <Link to="/results" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/results' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
+      <Link href="/results" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/results' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-70 group-hover:opacity-100">
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
         </svg>
         <span className="font-medium text-[14px]">Results</span>
       </Link>
 
-      <Link to="/account" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/account' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
+      <Link href="/account" className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors group ${pathname === '/account' ? 'bg-[#1A2235] text-white rounded-r-md border-l-[3px] border-[#00C37B]' : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'}`} style={{ textDecoration: 'none' }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={pathname === '/account' ? 'text-[#00C37B]' : 'opacity-70 group-hover:opacity-100'}>
           <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
           <path d="M20 21a8 8 0 1 0-16 0" />
@@ -399,28 +423,38 @@ const Sidebar = () => {
       </Link>
       </nav>
 
-      <div className="p-4 border-t border-[#1E293B]">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[#1A2235] cursor-pointer transition-colors">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-[#1E293B]" />
-          <div className="flex flex-col">
-            <span className="text-white text-[13px] font-bold">AlexP</span>
-            <span className="text-[#00C37B] text-[11px] font-mono">2,450.50 CR</span>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" className="ml-auto">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+      {isAuthenticated && user ? (
+        <div className="relative border-t border-[#1E293B] p-4">
+          <MemberSidebarProfile
+            initials={getInitials(user.username)}
+            username={user.username}
+            balanceLabel={formatBalance()}
+            onClick={() => setShowMenu((v) => !v)}
+          />
+          {showMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+              <div className="absolute bottom-full left-4 right-4 mb-2 z-50 bg-[#1A2235] border border-[#1E293B] rounded-lg shadow-xl overflow-hidden">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-[13px] font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            </>
+          )}
         </div>
-        <div className="mt-2 flex gap-2">
-          <button className="flex-1 bg-[#1A2235] hover:bg-[#232d42] text-[#94A3B8] text-[11px] font-bold py-1.5 rounded border border-[#1E293B] transition-colors">
-            Settings
-          </button>
-          <button className="flex-1 bg-[#1A2235] hover:bg-[#232d42] text-[#94A3B8] text-[11px] font-bold py-1.5 rounded border border-[#1E293B] transition-colors">
-            Deposit
-          </button>
+      ) : (
+        <div className="border-t border-[#1E293B] p-4">
+          <MemberSidebarProfile initials="GU" username="Guest" balanceLabel="Sign in" />
         </div>
-      </div>
+      )}
     </aside>
   );
 };
@@ -452,8 +486,17 @@ const ScoreUpdatesPanel = ({ onOddClick, selections, liveEvents = [] }) => {
   if (items.length > 0) items[0].highlighted = true;
 
   const featuredEvent = liveEvents.length > 0 ? liveEvents[0] : null;
-  const featuredMatchId = featuredEvent ? `live-${featuredEvent.id}` : 'football-ars-che';
-  const featuredLabel = featuredEvent ? `${featuredEvent.homeTeam?.name || 'Home'} vs ${featuredEvent.awayTeam?.name || 'Away'}` : 'Arsenal vs Chelsea';
+  const featuredMarket = featuredEvent?.markets?.[0];
+  const featuredSelection = featuredMarket?.selections?.[0] || featuredMarket?.outcomes?.[0];
+  const featuredMatchId = featuredEvent ? `live-${featuredEvent.id}` : null;
+  const featuredLabel = featuredEvent ? `${featuredEvent.homeTeam?.name || 'Home'} vs ${featuredEvent.awayTeam?.name || 'Away'}` : null;
+  const featuredSelectionName = featuredSelection?.name || 'Unavailable';
+  const featuredSelectionOdds = typeof featuredSelection?.odds === 'number'
+    ? featuredSelection.odds.toFixed(2)
+    : (featuredSelection?.odds || featuredSelection?.price ? String(featuredSelection.odds || featuredSelection.price) : '--');
+  const featuredIsSelected = featuredMatchId
+    ? selections.some(s => s.selKey === `${featuredMatchId}-${featuredSelectionName}`)
+    : false;
 
   return (
     <div className="bg-[#111827] border border-[#1E293B] rounded-xl p-5 sticky top-0">
@@ -485,23 +528,35 @@ const ScoreUpdatesPanel = ({ onOddClick, selections, liveEvents = [] }) => {
         <h4 className="text-white font-bold text-[13px] mb-3">Featured Market</h4>
         <div className="bg-[#1A2235] border border-[#1E293B] rounded-lg p-3">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-[#94A3B8] text-[12px] font-medium">{featuredEvent ? `${featuredEvent.homeTeam?.name || ''} Next Goal` : 'Arsenal Next Goal'}</span>
-            <span className="text-[#00C37B] text-[10px] font-bold">Trending 🔥</span>
+            <span className="text-[#94A3B8] text-[12px] font-medium">
+              {featuredMarket?.name || 'No featured market available'}
+            </span>
+            <span className="text-[#00C37B] text-[10px] font-bold">{featuredEvent ? 'Live' : 'Waiting'}</span>
           </div>
           <button
-            onClick={() => onOddClick(featuredMatchId, featuredLabel, 'Goals', 'Over 2.5 Goals', '2.20')}
+            onClick={() => {
+              if (!featuredMatchId || !featuredLabel || featuredSelectionOdds === '--') return;
+              onOddClick(
+                featuredMatchId,
+                featuredLabel,
+                featuredMarket?.name || 'Market',
+                featuredSelectionName,
+                featuredSelectionOdds
+              );
+            }}
+            disabled={!featuredEvent || featuredSelectionOdds === '--'}
             className={`w-full bg-[#0B0E1A] border rounded py-2 flex items-center justify-between px-3 group ${
-              selections.some(s => s.selKey === `${featuredMatchId}-Over 2.5 Goals`) ? 'border-[#00C37B] bg-[rgba(0,195,123,0.1)]' : 'border-[#1E293B] hover:border-[#F59E0B]'
+              featuredIsSelected ? 'border-[#00C37B] bg-[rgba(0,195,123,0.1)]' : 'border-[#1E293B] hover:border-[#F59E0B]'
             }`}
           >
             <span className={`text-[12px] font-bold uppercase transition-colors ${
-              selections.some(s => s.selKey === `${featuredMatchId}-Over 2.5 Goals`) ? 'text-[#00C37B]' : 'text-[#64748B] group-hover:text-white'
+              featuredIsSelected ? 'text-[#00C37B]' : 'text-[#64748B] group-hover:text-white'
             }`}>
-              Over 2.5 Goals
+              {featuredSelectionName}
             </span>
             <span className={`font-mono font-bold text-[16px] ${
-              selections.some(s => s.selKey === `${featuredMatchId}-Over 2.5 Goals`) ? 'text-[#00C37B]' : 'text-[#F59E0B]'
-            }`}>2.20</span>
+              featuredIsSelected ? 'text-[#00C37B]' : 'text-[#F59E0B]'
+            }`}>{featuredSelectionOdds}</span>
           </button>
         </div>
       </div>
@@ -510,14 +565,14 @@ const ScoreUpdatesPanel = ({ onOddClick, selections, liveEvents = [] }) => {
 };
 
 const sportFilters = [
-  { label: 'All Sports 247', active: true },
-  { label: '⚽ Football 89', active: false },
-  { label: '🎾 Tennis 42', active: false },
-  { label: '🏀 Basketball 31', active: false },
-  { label: '🏏 Cricket 18', active: false },
-  { label: '🏒 Hockey 24', active: false },
-  { label: '🥊 Boxing 4', active: false },
-  { label: '🎮 Esports 12', active: false },
+  { label: 'All Sports', active: true },
+  { label: '⚽ Football', active: false },
+  { label: '🎾 Tennis', active: false },
+  { label: '🏀 Basketball', active: false },
+  { label: '🏏 Cricket', active: false },
+  { label: '🏒 Hockey', active: false },
+  { label: '🥊 Boxing', active: false },
+  { label: '🎮 Esports', active: false },
   { label: '+ More', active: false },
 ];
 
@@ -639,7 +694,7 @@ const InPlayPage = () => {
   const [betError, setBetError] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
-  const navigate = useNavigate();
+  const router = useRouter();
   const { balance, formatBalance, placeBet: apiPlaceBet, isAuthenticated } = useCredits();
 
   const [liveEvents, setLiveEvents] = useState([]);
@@ -695,7 +750,7 @@ const InPlayPage = () => {
   const handlePlaceBet = useCallback(async () => {
     if (selections.length === 0 || isPlacing) return;
     setBetError(null);
-    if (!isAuthenticated) { navigate('/login'); return; }
+    if (!isAuthenticated) { router.push('/login'); return; }
     const stakeVal = parseFloat(stake) || 0;
     if (stakeVal <= 0) { setBetError('Enter a valid stake'); return; }
     if (stakeVal > balance) { setBetError('Insufficient balance'); return; }
@@ -714,7 +769,7 @@ const InPlayPage = () => {
       }
     } catch (e) { setBetError(e?.response?.data?.message || e?.message || 'Something went wrong'); }
     finally { setIsPlacing(false); }
-  }, [selections, stake, balance, isAuthenticated, isPlacing, apiPlaceBet, navigate]);
+  }, [selections, stake, balance, isAuthenticated, isPlacing, apiPlaceBet, router]);
 
   const allEvents = useMemo(() => [...liveEvents, ...upcomingEvents], [liveEvents, upcomingEvents]);
   const useLiveData = allEvents.length > 0;
@@ -946,7 +1001,7 @@ const App = () => {
     { label: 'My Bets', href: '/my-bets' },
     { label: 'Account', href: '/account' },
   ];
-  const { pathname } = useLocation();
+  const pathname = usePathname();
 
   return (
     <div
@@ -963,7 +1018,7 @@ const App = () => {
               return (
                 <Link
                   key={href}
-                  to={href}
+                  href={href}
                   className={`px-4 py-2 text-[14px] rounded transition-colors ${
                     active
                       ? 'font-medium text-[#F1F5F9] bg-[#1A2235]'

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useCredits } from '@/contexts/CreditsContext';
+import { useAuthStore } from '@/stores/authStore';
 
 const customStyles = {
   bgPrimary: '#0B0E1A',
@@ -82,7 +84,25 @@ const MarketCard = ({ title, children, defaultOpen = true }) => {
   );
 };
 
-const Sidebar = () => (
+const Sidebar = () => {
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { balance } = useCredits();
+  const [showMenu, setShowMenu] = useState(false);
+  const logout = useAuthStore((s) => s.logout);
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const handleLogout = async () => {
+    setShowMenu(false);
+    await logout();
+    window.location.href = '/login';
+  };
+
+  return (
   <aside className="w-[240px] flex flex-col shrink-0 z-20" style={{ background: customStyles.bgSecondary, borderRight: `1px solid ${customStyles.border}` }}>
     <div className="h-16 flex items-center px-6" style={{ borderBottom: `1px solid ${customStyles.border}` }}>
       <svg width="24" height="24" viewBox="0 0 24 24" fill={customStyles.accent} className="mr-2">
@@ -133,17 +153,48 @@ const Sidebar = () => (
         <span className="font-medium text-[14px]">Account</span>
       </a>
     </nav>
-    <div className="p-4" style={{ borderTop: `1px solid ${customStyles.border}` }}>
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full" style={{ background: 'linear-gradient(to bottom right, #6366F1, #A855F7)', border: `1px solid ${customStyles.border}` }} />
-        <div className="flex flex-col">
-          <span className="text-white text-[13px] font-bold">AlexP</span>
-          <span className="text-[11px] font-mono" style={{ color: customStyles.accent, fontFamily: "'Roboto Mono', monospace" }}>1,240.00 CR</span>
-        </div>
+    {isAuthenticated && user && (
+      <div className="p-4 relative" style={{ borderTop: `1px solid ${customStyles.border}` }}>
+        <button
+          onClick={() => setShowMenu((v) => !v)}
+          className="flex items-center gap-3 w-full text-left hover:bg-[#1A2235] rounded-lg p-1.5 -m-1.5 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0" style={{ background: customStyles.accent, color: customStyles.bgPrimary, border: `1px solid ${customStyles.border}` }}>
+            {getInitials(user.username)}
+          </div>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-white text-[13px] font-bold truncate">{user.username}</span>
+            <span className="text-[11px] font-mono" style={{ color: customStyles.accent }}>
+              {balance != null ? `${balance.toFixed(2)} CR` : '...'}
+            </span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0" style={{ color: customStyles.textSecondary }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {showMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+            <div className="absolute bottom-full left-4 right-4 mb-2 z-50 rounded-lg shadow-xl overflow-hidden" style={{ background: customStyles.surface, border: `1px solid ${customStyles.border}` }}>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-4 py-3 text-left text-[13px] font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </>
+        )}
       </div>
-    </div>
+    )}
   </aside>
-);
+  );
+};
 
 const BetSlip = () => {
   const [stakeValue, setStakeValue] = useState('50.00');

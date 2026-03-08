@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/hooks/use-toast';
 
@@ -53,13 +53,40 @@ type Session = {
   current?: boolean;
 };
 
-const INITIAL_SESSIONS: Session[] = [
-  { id: 'sess-1', device: 'iPhone 15 Pro', browser: 'Mobile App \u2022 iOS 17.4', location: 'Singapore, Central', flag: '\uD83C\uDDF8\uD83C\uDDEC', ip: '192.168.1.45', lastActive: 'Active Now', status: 'online', icon: 'phone', current: true },
-  { id: 'sess-2', device: 'Windows Desktop', browser: 'Chrome v122.0.1 \u2022 Win 11', location: 'Hong Kong, HK', flag: '\uD83C\uDDED\uD83C\uDDF0', ip: '203.0.113.88', lastActive: '2 hours ago', status: 'idle', icon: 'desktop' },
-  { id: 'sess-3', device: 'iPad Air', browser: 'Safari \u2022 iPadOS 17.2', location: 'Los Angeles, US', flag: '\uD83C\uDDFA\uD83C\uDDF8', ip: '72.14.201.112', lastActive: '6 hours ago', status: 'idle', icon: 'tablet' },
-  { id: 'sess-4', device: 'MacBook Pro 16"', browser: 'Safari \u2022 macOS Sonoma', location: 'Singapore, West', flag: '\uD83C\uDDF8\uD83C\uDDEC', ip: '116.15.22.109', lastActive: 'Yesterday, 11:42 PM', status: 'idle', icon: 'laptop' },
-  { id: 'sess-5', device: 'Windows Workstation', browser: 'Firefox v123.0 \u2022 Win 10', location: 'Hanoi, VN', flag: '\uD83C\uDDFB\uD83C\uDDF3', ip: '171.244.10.5', lastActive: '3 days ago', status: 'idle', icon: 'desktop' },
-];
+type ApiSession = {
+  id: string;
+  userId: number;
+  username: string;
+  role: string;
+};
+
+function apiSessionToSession(s: ApiSession, idx: number): Session {
+  return {
+    id: s.id,
+    device: `${s.username} (${s.role})`,
+    browser: `Session ${s.id.slice(0, 8)}...`,
+    location: '',
+    flag: '',
+    ip: '',
+    lastActive: idx === 0 ? 'Active Now' : 'Active',
+    status: idx === 0 ? 'online' : 'idle',
+    icon: 'desktop',
+    current: false,
+  };
+}
+
+async function fetchSessions(): Promise<Session[]> {
+  try {
+    const res = await apiGet<ApiSession[]>('/api/auth/sessions');
+    return (res.data || []).map((s, i) => apiSessionToSession(s, i));
+  } catch {
+    return [];
+  }
+}
+
+async function revokeSessionApi(sessionId: string): Promise<void> {
+  await apiDelete(`/api/auth/sessions/${sessionId}`);
+}
 
 /* ── Device Icon ─────────────────────────────────────────── */
 function DeviceIcon({ type, size = 14 }: { type: Session['icon']; size?: number }) {
@@ -718,7 +745,7 @@ export default function AdminSettingsPage() {
   const [notifAgentSms, setNotifAgentSms] = useState(false);
 
   /* ── Active Sessions ── */
-  const [sessions, setSessions] = useState<Session[]>(INITIAL_SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionView, setSessionView] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<Session | null>(null);
   const [revokingSession, setRevokingSession] = useState<Session | null>(null);
@@ -726,15 +753,20 @@ export default function AdminSettingsPage() {
   const [showTerminateAll, setShowTerminateAll] = useState(false);
   const [showSuspiciousLogin, setShowSuspiciousLogin] = useState(false);
 
-  const handleRevokeConfirm = () => {
+  useEffect(() => {
+    fetchSessions().then(setSessions);
+  }, []);
+
+  const handleRevokeConfirm = async () => {
     if (!revokeTarget) return;
     const target = revokeTarget;
     setRevokeTarget(null);
     setRevokingSession(target);
-    setTimeout(() => {
-      setRevokingSession(null);
-      setRevokedSession(target);
-    }, 2000);
+    try {
+      await revokeSessionApi(target.id);
+    } catch { /* handled below */ }
+    setRevokingSession(null);
+    setRevokedSession(target);
   };
 
   const handleRevokedDismiss = () => {

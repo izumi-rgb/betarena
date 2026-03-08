@@ -204,7 +204,7 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
   const [username, setUsername] = useState(initialUsername || '');
   const [password, setPassword] = useState(initialPassword || '');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorText, setErrorText] = useState('Invalid username or password');
   const [usernameFocused, setUsernameFocused] = useState(false);

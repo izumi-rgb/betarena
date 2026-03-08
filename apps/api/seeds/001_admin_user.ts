@@ -25,6 +25,7 @@ export async function seed(knex: Knex): Promise<void> {
       created_by: null,
       parent_agent_id: null,
       can_create_sub_agent: false,
+      must_change_password: true,
     }).returning('*');
 
     await trx('credit_accounts').insert({

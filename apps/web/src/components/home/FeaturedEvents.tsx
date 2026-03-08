@@ -18,7 +18,7 @@ type Market = {
 };
 
 export type HomeEvent = {
-  id: number;
+  id: string | number;
   sport?: string;
   league?: string;
   status?: string;

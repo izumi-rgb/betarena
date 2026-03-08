@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import logger from '../config/logger';
+import db from '../config/database';
 
 export interface JwtPayload {
   id: number;
@@ -18,7 +19,7 @@ declare global {
   }
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies?.access_token;
 
@@ -34,6 +35,21 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    const user = await db('users')
+      .select('id', 'username', 'role', 'display_id', 'is_active')
+      .where({ id: decoded.id })
+      .first();
+
+    if (!user || !user.is_active) {
+      res.status(401).json({
+        success: false,
+        data: null,
+        message: 'User is inactive or no longer available',
+        error: 'USER_INACTIVE',
+      });
+      return;
+    }
+
     req.user = decoded;
     next();
   } catch (err) {

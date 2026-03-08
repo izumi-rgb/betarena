@@ -6,6 +6,7 @@ export const CACHE_TTL = {
   LIVE_ODDS: 15,
   LIVE_CRICKET: 30,
   PRE_MATCH_ODDS: 60,
+  TODAY_GAMES: 5 * 60,
   FIXTURES: 30 * 60,
   COMPETITION: 2 * 60 * 60,
   STANDINGS: 2 * 60 * 60,
@@ -19,8 +20,9 @@ export async function getCachedOrFetch<T>(
   ttlSeconds: number,
   fetchFn: () => Promise<T>,
 ): Promise<T> {
+  let cached: string | null = null;
   try {
-    const cached = await redis.get(key);
+    cached = await redis.get(key);
     if (cached) {
       return JSON.parse(cached);
     }
@@ -30,8 +32,17 @@ export async function getCachedOrFetch<T>(
 
   const fresh = await fetchFn();
 
+  // Don't overwrite good cached data with empty results (e.g. when API budget exhausted)
+  const isEmpty = fresh == null || (Array.isArray(fresh) && fresh.length === 0);
+  if (isEmpty && cached) {
+    logger.info('Returning stale cache instead of empty result', { key });
+    return JSON.parse(cached);
+  }
+
   try {
-    await redis.setex(key, ttlSeconds, JSON.stringify(fresh));
+    if (!isEmpty) {
+      await redis.setex(key, ttlSeconds, JSON.stringify(fresh));
+    }
   } catch (err) {
     logger.warn('Redis cache write error', { key, error: (err as Error).message });
   }
@@ -41,10 +52,14 @@ export async function getCachedOrFetch<T>(
 
 export async function invalidateCache(pattern: string): Promise<void> {
   try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
+    let cursor = '0';
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } while (cursor !== '0');
   } catch (err) {
     logger.warn('Redis cache invalidation error', { pattern, error: (err as Error).message });
   }

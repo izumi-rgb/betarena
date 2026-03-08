@@ -10,7 +10,10 @@ let io: Server;
 export function initSocket(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: {
-      origin: env.CORS_ORIGIN.split(',').map(o => o.trim()),
+      origin: env.CORS_ORIGIN
+        .split(',')
+        .map((origin) => origin.split('#')[0].trim())
+        .filter(Boolean),
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -36,27 +39,39 @@ export function initSocket(httpServer: HttpServer): Server {
 
   io.on('connection', (socket) => {
     logger.debug('Socket connected', { socketId: socket.id, userId: socket.data.user?.id, role: socket.data.role });
+    socket.data.watchedEvents = new Set<string>();
     if (socket.data.user?.id) {
       socket.join(`user:${socket.data.user.id}`);
     }
 
     socket.on('join:event', async (eventId: string) => {
+      if (socket.data.watchedEvents.has(eventId)) {
+        return;
+      }
       socket.join(`event:${eventId}`);
+      socket.data.watchedEvents.add(eventId);
       await redis.incr(`watchers:${eventId}`);
       logger.debug('Socket joined event room', { socketId: socket.id, eventId });
     });
 
     socket.on('leave:event', async (eventId: string) => {
+      if (!socket.data.watchedEvents.has(eventId)) {
+        return;
+      }
+      socket.data.watchedEvents.delete(eventId);
       socket.leave(`event:${eventId}`);
-      await redis.decr(`watchers:${eventId}`);
+      const count = await redis.decr(`watchers:${eventId}`);
+      if (count < 0) {
+        await redis.set(`watchers:${eventId}`, '0');
+      }
     });
 
     socket.on('disconnect', async () => {
-      // Decrement watchers for all event rooms this socket was in
-      for (const room of socket.rooms) {
-        if (room.startsWith('event:')) {
-          const eventId = room.replace('event:', '');
-          await redis.decr(`watchers:${eventId}`);
+      const watchedEvents: Set<string> = socket.data.watchedEvents || new Set<string>();
+      for (const eventId of watchedEvents) {
+        const count = await redis.decr(`watchers:${eventId}`);
+        if (count < 0) {
+          await redis.set(`watchers:${eventId}`, '0');
         }
       }
       logger.debug('Socket disconnected', { socketId: socket.id });

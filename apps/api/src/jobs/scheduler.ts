@@ -1,23 +1,16 @@
 import cron from 'node-cron';
-import { syncOdds } from './oddsSync';
 import { settleBets } from './betSettlement';
 import logger from '../config/logger';
+import { withRedisLock } from '../utils/distributedLock';
 
 export function startScheduler(): void {
-  // Sync live odds every 5 seconds
-  cron.schedule('*/5 * * * * *', async () => {
-    await syncOdds();
-  });
-
-  // Sync pre-match odds every minute
-  cron.schedule('* * * * *', async () => {
-    await syncOdds();
-  });
-
   // Settle bets every minute
   cron.schedule('* * * * *', async () => {
-    await settleBets();
+    const result = await withRedisLock('lock:jobs:settle-bets', 55, settleBets);
+    if (result === null) {
+      logger.debug('Skipped settlement tick because another worker holds the lock');
+    }
   });
 
-  logger.info('Scheduler started: odds sync (5s/60s), bet settlement (60s)');
+  logger.info('Scheduler started: bet settlement (60s)');
 }

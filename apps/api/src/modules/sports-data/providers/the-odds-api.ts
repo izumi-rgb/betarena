@@ -19,7 +19,7 @@ let remainingCredits: number | null = null;
 function getApiKey(): string {
   const key = process.env.ODDS_API_KEY;
   if (!key) {
-    logger.warn(`${PROVIDER}: ODDS_API_KEY is not set`);
+    logger.debug(`${PROVIDER}: ODDS_API_KEY is not set`);
     return '';
   }
   return key;

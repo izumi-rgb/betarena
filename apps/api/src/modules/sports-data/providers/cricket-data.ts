@@ -35,7 +35,7 @@ async function guardedFetch<T>(endpoint: string, params?: Record<string, string 
   const count = await getDailyCount(PROVIDER);
 
   if (count >= SOFT_CAP) {
-    logger.warn(`${PROVIDER}: soft cap reached (${count}/${DAILY_LIMIT}). Serving cache only.`);
+    logger.info(`${PROVIDER}: soft cap reached (${count}/${DAILY_LIMIT}). Serving cache only.`);
     return null;
   }
 
@@ -57,12 +57,12 @@ async function guardedFetch<T>(endpoint: string, params?: Record<string, string 
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all currently live / recent matches. Cache: 30 s.
+ * Fetch all currently live / recent matches. Cache: 5 min (conserves daily API budget).
  */
 export async function getCurrentMatches(): Promise<unknown> {
   return getCachedOrFetch(
     `${PROVIDER}:current-matches`,
-    CACHE_TTL.LIVE_CRICKET,
+    CACHE_TTL.TODAY_GAMES,
     async () => {
       const data = await guardedFetch<{ data: unknown[] }>('/currentMatches');
       const matches = data?.data ?? [];

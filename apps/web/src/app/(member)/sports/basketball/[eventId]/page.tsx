@@ -392,16 +392,16 @@ export default function BasketballMatchPage() {
         ...normalized,
         id: String(normalized.id ?? eventId),
         league: normalized.league || 'NBA',
-        status: normalized.status || 'live',
-        score: normalized.score ?? { home: 78, away: 71 },
-        period: normalized.period ?? 'Q3',
-        clock: normalized.clock ?? '8:42',
+        status: normalized.status || 'scheduled',
+        score: normalized.score ?? { home: 0, away: 0 },
+        period: normalized.period ?? '—',
+        clock: normalized.clock ?? '—',
         stats: normalized.stats ?? {
-          fgPercent: [49, 46],
-          threePtPercent: [38, 35],
-          rebounds: [42, 39],
-          assists: [21, 18],
-          turnovers: [11, 13],
+          fgPercent: [0, 0],
+          threePtPercent: [0, 0],
+          rebounds: [0, 0],
+          assists: [0, 0],
+          turnovers: [0, 0],
         },
         markets: normalized.markets ?? [],
       } as BasketballEvent));
@@ -436,7 +436,7 @@ export default function BasketballMatchPage() {
   useEffect(() => {
     if (!eventId) return;
 
-    connectSocket(typeof window !== 'undefined' ? localStorage.getItem('accessToken') ?? undefined : undefined);
+    connectSocket();
     joinEventRoom(eventId);
     const socket = getSocket();
 

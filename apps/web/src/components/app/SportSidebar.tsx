@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useBalance } from '@/hooks/useBalance';
 import { BalanceBadge } from '@/components/app/BalanceBadge';
+import { MemberSidebarProfile } from '@/components/app/MemberSidebarProfile';
 
 const MEMBER_NAV_LINKS = [
   { href: '/sports', label: 'Home' },
@@ -67,24 +68,13 @@ export function SportSidebar() {
       </nav>
 
       {isAuthenticated && user && (
-        <div className="p-4 border-t border-[#1E293B] relative">
-          <button
+        <div className="relative border-t border-[#1E293B] p-4">
+          <MemberSidebarProfile
+            initials={getInitials(user.username)}
+            username={user.username}
+            balanceLabel={balance != null ? `${balance.toFixed(2)} CR` : '...'}
             onClick={() => setShowMenu((v) => !v)}
-            className="flex items-center gap-3 w-full text-left hover:bg-[#1A2235] rounded-lg p-1.5 -m-1.5 transition-colors"
-          >
-            <div className="w-9 h-9 rounded-full bg-[#00C37B] border border-[#1E293B] flex items-center justify-center text-[#0B0E1A] font-bold text-sm shrink-0">
-              {getInitials(user.username)}
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-white text-[13px] font-bold truncate">{user.username}</span>
-              <span className="text-[#00C37B] text-[11px] font-mono">
-                {balance != null ? `${balance.toFixed(2)} CR` : '...'}
-              </span>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#64748B] shrink-0">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
+          />
           {showMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />

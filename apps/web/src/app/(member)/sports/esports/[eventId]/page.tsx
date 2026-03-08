@@ -336,7 +336,7 @@ export default function EsportsMatchPage() {
   useEffect(() => {
     if (!eventId) return;
 
-    connectSocket(typeof window !== 'undefined' ? localStorage.getItem('accessToken') ?? undefined : undefined);
+    connectSocket();
     joinEventRoom(eventId);
     const socket = getSocket();
 

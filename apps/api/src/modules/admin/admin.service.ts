@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import db from '../../config/database';
 import { writeSystemLog } from '../../utils/systemLog';
 import { generatePassword } from '../../utils/generateCredentials';
+import { revokeUserSessions } from '../auth/auth.service';
 
 export async function createAgent(
   adminId: number,
@@ -182,6 +183,7 @@ export async function resetUserPassword(
   const newPassword = generatePassword();
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await db('users').where({ id: userId }).update({ password_hash: passwordHash });
+  await revokeUserSessions(userId);
 
   await writeSystemLog({
     user_id: adminId,

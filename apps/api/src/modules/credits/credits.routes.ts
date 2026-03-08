@@ -13,12 +13,31 @@ const router = Router();
 
 router.use(authMiddleware);
 
-// Admin-only: create credits
+// Admin-only: create credits (requires security PIN)
+const WEAK_PINS = ['1234', '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999'];
+
 router.post('/admin/create', requireRole('admin'), async (req: Request, res: Response) => {
   try {
-    const { amount } = req.body;
-    if (!amount || typeof amount !== 'number' || amount <= 0) {
+    const { amount, pin } = req.body;
+    if (typeof amount !== 'number' || amount <= 0) {
       res.status(400).json({ success: false, data: null, message: 'Valid amount required', error: 'INVALID_AMOUNT' });
+      return;
+    }
+    if (!pin || typeof pin !== 'string' || pin.length < 4) {
+      res.status(400).json({ success: false, data: null, message: 'Security PIN required (min 4 digits)', error: 'PIN_REQUIRED' });
+      return;
+    }
+    if (WEAK_PINS.includes(pin)) {
+      res.status(400).json({ success: false, data: null, message: 'PIN too weak — choose a stronger PIN', error: 'WEAK_PIN' });
+      return;
+    }
+    const expectedPin = process.env.ADMIN_MINT_PIN;
+    if (!expectedPin) {
+      res.status(500).json({ success: false, data: null, message: 'ADMIN_MINT_PIN is not configured', error: 'PIN_NOT_CONFIGURED' });
+      return;
+    }
+    if (pin !== expectedPin) {
+      res.status(403).json({ success: false, data: null, message: 'Invalid security PIN', error: 'INVALID_PIN' });
       return;
     }
     const ip = req.ip || req.socket.remoteAddress || 'unknown';

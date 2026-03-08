@@ -27,9 +27,23 @@ export function AuthGuard({ children, requireAuth = true, allowedRoles }: AuthGu
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const shouldRedirectToLogin = requireAuth && !isHydrating && !isAuthenticated;
+  const settingsPath = '/account/settings';
+  const mustChangePassword = user?.must_change_password === true;
+  const isOnSettingsPage = pathname === settingsPath;
 
   useEffect(() => {
     if (!requireAuth || isHydrating) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.replace(`/login?next=${encodeURIComponent(pathname || '/sports')}`);
+      return;
+    }
+
+    if (mustChangePassword && !isOnSettingsPage) {
+      router.replace(settingsPath);
       return;
     }
 
@@ -50,13 +64,16 @@ export function AuthGuard({ children, requireAuth = true, allowedRoles }: AuthGu
     return centeredLoader('Checking session...');
   }
 
-  if (requireAuth && !isAuthenticated) {
-    router.push(`/login?next=${encodeURIComponent(pathname || '/sports')}`);
-    return null;
+  if (shouldRedirectToLogin) {
+    return centeredLoader('Redirecting to login...');
   }
 
   if (allowedRoles?.length && user && !allowedRoles.includes(user.role)) {
     return centeredLoader('Redirecting...');
+  }
+
+  if (mustChangePassword && !isOnSettingsPage) {
+    return centeredLoader('Redirecting to change password...');
   }
 
   return <>{children}</>;

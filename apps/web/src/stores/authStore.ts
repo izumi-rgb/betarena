@@ -4,11 +4,34 @@ import { create } from "zustand";
 import { apiPost, apiGet } from "@/lib/api";
 import { connectSocket, disconnectSocket } from "@/lib/socket";
 
+const SOCKET_TOKEN_STORAGE_KEY = "betarena.socketAccessToken";
+
+function readStoredSocketToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.sessionStorage.getItem(SOCKET_TOKEN_STORAGE_KEY);
+}
+
+function writeStoredSocketToken(token: string | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (token) {
+    window.sessionStorage.setItem(SOCKET_TOKEN_STORAGE_KEY, token);
+    return;
+  }
+
+  window.sessionStorage.removeItem(SOCKET_TOKEN_STORAGE_KEY);
+}
+
 export interface User {
   id: string;
   username: string;
   role: string;
   display_id: string;
+  must_change_password?: boolean;
 }
 
 interface AuthState {
@@ -24,14 +47,14 @@ interface AuthActions {
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
   fetchMe: (options?: { silent?: boolean }) => Promise<boolean>;
-  hydrateSession: () => Promise<void>;
+  hydrateSession: (options?: { publicOnly?: boolean }) => Promise<void>;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   user: null,
-  accessToken: null,
+  accessToken: readStoredSocketToken(),
   isLoading: false,
   isHydrating: false,
   isAuthenticated: false,
@@ -39,6 +62,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   setUser: (user) => set({ user, isAuthenticated: !!user }),
 
   setToken: (token) => {
+    writeStoredSocketToken(token);
     set({ accessToken: token });
   },
 
@@ -113,16 +137,37 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     }
   },
 
-  hydrateSession: async () => {
+  hydrateSession: async (options) => {
     if (get().isHydrating || get().isAuthenticated) {
+      return;
+    }
+
+    const publicOnly = options?.publicOnly ?? false;
+    const storedToken = readStoredSocketToken();
+
+    if (publicOnly && !storedToken) {
       return;
     }
 
     set({ isHydrating: true });
     try {
+      if (storedToken && get().accessToken !== storedToken) {
+        set({ accessToken: storedToken });
+      }
+
       // Try fetching /me using HttpOnly cookie auth
       const meLoaded = await get().fetchMe({ silent: true });
       if (meLoaded) {
+        if (!get().accessToken) {
+          await get().refreshToken();
+        }
+        return;
+      }
+
+      if (publicOnly) {
+        get().setToken(null);
+        disconnectSocket();
+        set({ user: null, isAuthenticated: false });
         return;
       }
 

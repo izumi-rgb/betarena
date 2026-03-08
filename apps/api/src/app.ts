@@ -21,7 +21,10 @@ import resultsRoutes from './modules/results/results.routes';
 const app = express();
 
 app.use(helmet());
-const allowedOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
+const allowedOrigins = env.CORS_ORIGIN
+  .split(',')
+  .map((origin) => origin.split('#')[0].trim())
+  .filter(Boolean);
 app.use(cors({
   origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   credentials: true,
@@ -30,12 +33,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(loggerMiddleware);
-app.use(apiRateLimiter);
 app.use(sanitizeMiddleware);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, data: null, message: 'API is running', error: null });
 });
+
+// Apply rate limiter only to API routes (not health check or static assets)
+app.use('/api', apiRateLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -683,6 +683,84 @@ export function normalizeApiVolleyball(raw: unknown): LiveEvent | null {
 }
 
 // ---------------------------------------------------------------------------
+// FotMob Live Football Data  (free-api-live-football-data.p.rapidapi.com)
+// Each match: { id, leagueId, home, away, statusId, status }
+// ---------------------------------------------------------------------------
+
+export function normalizeFotmob(raw: unknown): LiveEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const r = raw as Record<string, unknown>;
+  const home = r.home as Record<string, unknown> | undefined;
+  const away = r.away as Record<string, unknown> | undefined;
+  const status = r.status as Record<string, unknown> | undefined;
+
+  if (!home || !away) return null;
+
+  const homeName = str(get(home, 'longName') || get(home, 'name'), 'Home');
+  const awayName = str(get(away, 'longName') || get(away, 'name'), 'Away');
+
+  // Skip matches with no team names
+  if (homeName === 'Home' && awayName === 'Away') return null;
+
+  // Determine status
+  let eventStatus: EventStatus = 'pre';
+  if (status) {
+    const finished = status.finished as boolean | undefined;
+    const started = status.started as boolean | undefined;
+    const ongoing = status.ongoing as boolean | undefined;
+
+    if (finished) {
+      eventStatus = 'ft';
+    } else if (ongoing) {
+      eventStatus = 'live';
+    } else if (started && !ongoing) {
+      eventStatus = 'ht'; // started but not ongoing = halftime/break
+    }
+  }
+
+  // Extract clock from liveTime
+  const liveTime = get(status, 'liveTime') as Record<string, unknown> | undefined;
+  let clock = '';
+  if (liveTime) {
+    clock = str(liveTime.short, '');
+  }
+  if (!clock && status) {
+    const reason = status.reason as Record<string, unknown> | undefined;
+    if (reason) clock = str(reason.short, '');
+  }
+
+  const leagueName = str(r.leagueName, '');
+
+  return {
+    id: `fm-${str(r.id)}`,
+    sport: 'football',
+    competition: {
+      id: str(r.leagueId),
+      name: leagueName || 'Football',
+    },
+    homeTeam: {
+      id: str(get(home, 'id')),
+      name: homeName,
+    },
+    awayTeam: {
+      id: str(get(away, 'id')),
+      name: awayName,
+    },
+    score: {
+      home: num(home.score),
+      away: num(away.score),
+    },
+    clock,
+    status: eventStatus,
+    startTime: r.time ? new Date(str(r.time)) : new Date(),
+    markets: [],
+    source: 'fotmob-live',
+    lastUpdated: new Date(),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // OddsPapi / The Odds API
 // Docs: https://the-odds-api.com/liveapi/guides/v4/
 // Each event has { bookmakers: [{ title, markets: [{ key, outcomes }] }] }

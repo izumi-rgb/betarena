@@ -14,7 +14,7 @@ import { AppShell } from '@/components/app/AppShell';
 const SPORTS_WITH_INLINE_CHROME = ['basketball', 'tennis', 'esports', 'golf', 'cricket'];
 
 // Top-level pages that have been migrated from variant bundles to real React components
-const MIGRATED_TOP_LEVEL = ['/results'];
+const MIGRATED_TOP_LEVEL = ['/results', '/my-bets'];
 
 function needsAppShell(pathname: string | null): boolean {
   if (!pathname) return false;

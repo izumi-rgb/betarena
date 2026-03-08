@@ -18,14 +18,20 @@ import { normalizeApiFootball, normalizeESPN, normalizeCricket, normalizeOddsMar
  * Redis keys follow the pattern `watchers:<eventId>`.
  */
 async function getWatchedEventIds(): Promise<string[]> {
-  const keys = await redis.keys('watchers:*');
   const watched: string[] = [];
-  for (const key of keys) {
-    const count = await redis.get(key);
-    if (count && parseInt(count, 10) > 0) {
-      watched.push(key.replace('watchers:', ''));
+  let cursor = '0';
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'watchers:*', 'COUNT', 100);
+    cursor = nextCursor;
+    for (const key of keys) {
+      const count = await redis.get(key);
+      if (count && parseInt(count, 10) > 0) {
+        watched.push(key.replace('watchers:', ''));
+      }
     }
-  }
+  } while (cursor !== '0');
+
   return watched;
 }
 
@@ -206,6 +212,18 @@ export function startScheduler(): void {
   // Daily midnight: reset stale counters
   cron.schedule('0 0 * * *', () => {
     resetDailyCounters().catch((e) => logger.error('Cron: counter reset error', { error: (e as Error).message }));
+  });
+
+  // Every 3 minutes: refresh aggregate live events cache
+  cron.schedule('*/3 * * * *', () => {
+    import('../sports-data.service').then(({ refreshAggregateCache }) => {
+      refreshAggregateCache().catch((e) => logger.error('Cron: aggregate refresh error', { error: (e as Error).message }));
+    });
+  });
+
+  // Warm the aggregate cache on startup
+  import('../sports-data.service').then(({ refreshAggregateCache }) => {
+    refreshAggregateCache().catch((e) => logger.error('Startup aggregate refresh failed', { error: (e as Error).message }));
   });
 
   logger.info('Sports data scheduler started');

@@ -1,5 +1,8 @@
+'use client';
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BrowserRouter as Router, Link, useLocation, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCredits } from '@/contexts/CreditsContext';
 import { apiGet } from '@/lib/api';
 
@@ -210,6 +213,7 @@ const OddsButton = ({ label, value, selected, onClick }) => {
 
 const OddsCellButton = ({ value, flash, selected, onClick }) => {
   const [hovered, setHovered] = useState(false);
+  const display = (value && typeof value === 'object') ? (value.value || value.label || '—') : value;
   return (
     <div
       onClick={onClick}
@@ -224,7 +228,7 @@ const OddsCellButton = ({ value, flash, selected, onClick }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {value}
+      {display}
     </div>
   );
 };
@@ -271,7 +275,7 @@ const LiveCard = ({ league, status, team1, score1, team2, score2, odds, selected
       </div>
       {markets > 0 && (
         <div style={{ display: 'block', textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94A3B8' }}>
-          <Link to={detailHref} style={{ color: '#94A3B8', textDecoration: 'none' }}>+{markets} Markets</Link>
+          <Link href={detailHref} style={{ color: '#94A3B8', textDecoration: 'none' }}>+{markets} Markets</Link>
         </div>
       )}
     </div>
@@ -385,7 +389,8 @@ const UpcomingRow = ({ match, idx, favorites, toggleFavorite, selectedOdds, setS
                   } else {
                     if (selectedOdds?.[rowKey] != null) removeFromSlip(`${rowKey}-${selectedOdds[rowKey]}`);
                     const label = UPCOMING_LABELS[oi] || String(oi + 1);
-                    addToSlip(`${match.team1} vs ${match.team2}`, 'Match Result', label === '1' ? match.team1 : label === '2' ? match.team2 : 'Draw', odd, selKey);
+                    const oddVal = (odd && typeof odd === 'object') ? (odd.value || '—') : odd;
+                    addToSlip(`${match.team1} vs ${match.team2}`, 'Match Result', label === '1' ? match.team1 : label === '2' ? match.team2 : 'Draw', oddVal, selKey);
                   }
                 }}
               />
@@ -394,7 +399,7 @@ const UpcomingRow = ({ match, idx, favorites, toggleFavorite, selectedOdds, setS
         </div>
       </td>
       <td style={{ padding: '12px 16px', textAlign: 'right', paddingRight: '24px', borderTopRightRadius: '6px', borderBottomRightRadius: '6px' }}>
-        <Link to={match.detailHref} style={{ color: '#94A3B8', fontSize: '12px', textDecoration: 'none' }}>+{match.markets}</Link>
+        <Link href={match.detailHref} style={{ color: '#94A3B8', fontSize: '12px', textDecoration: 'none' }}>+{match.markets}</Link>
       </td>
     </tr>
   );
@@ -452,9 +457,10 @@ const App = () => {
   const [isPlacing, setIsPlacing] = useState(false);
   const [favorites, setFavorites] = useState({});
   const [slipSelections, setSlipSelections] = useState([]);
-  const [liveApiEvents, setLiveApiEvents] = useState(null);
+  const [liveApiEvents, setLiveApiEvents] = useState([]);
+  const [upcomingApiEvents, setUpcomingApiEvents] = useState([]);
   const [sportCounts, setSportCounts] = useState({});
-  const navigate = useNavigate();
+  const router = useRouter();
   const { balance, isLoading: balanceLoading, formatBalance, placeBet: apiPlaceBet, isAuthenticated } = useCredits();
 
   useEffect(() => {
@@ -472,13 +478,16 @@ const App = () => {
       try {
         const res = await apiGet('/api/sports/live');
         if (!cancelled && res.success) {
-          const events = Array.isArray(res.data) ? res.data : (res.data?.live || []);
-          if (events.length > 0) {
-            setLiveApiEvents(events);
-          }
+          const live = Array.isArray(res.data) ? res.data : (res.data?.live || []);
+          const upcoming = Array.isArray(res.data) ? [] : (res.data?.upcoming || []);
+          setLiveApiEvents(live);
+          setUpcomingApiEvents(upcoming);
         }
       } catch (_) {
-        // keep fallback data on error
+        if (!cancelled) {
+          setLiveApiEvents([]);
+          setUpcomingApiEvents([]);
+        }
       }
     };
     fetchLive();
@@ -490,51 +499,6 @@ const App = () => {
 
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
-
-  const FALLBACK_LIVE = [
-    {
-      id: 0, sport: 'Football',
-      league: 'Premier League', status: "74'",
-      team1: 'Arsenal', score1: '2', team2: 'Chelsea', score2: '1',
-      detailHref: '/sports/football/seed-fb-0', odds: [{ label: '1', value: '1.25' }, { label: 'X', value: '4.50' }, { label: '2', value: '8.00' }], markets: 112,
-    },
-    {
-      id: 1, sport: 'Basketball',
-      league: 'NBA', status: '3rd Qtr',
-      team1: 'Lakers', score1: '88', team2: 'Warriors', score2: '92',
-      detailHref: '/sports/basketball/seed-bb-1', odds: [{ label: '1', value: '2.85' }, { label: '2', value: '1.45' }], markets: 45,
-    },
-    {
-      id: 2, sport: 'Tennis',
-      league: 'ATP Dubai', status: '2nd Set',
-      team1: 'Djokovic', score1: '1', team2: 'Alcaraz', score2: '0',
-      detailHref: '/sports/tennis/seed-tn-2', odds: [{ label: '1', value: '1.18' }, { label: '2', value: '4.20' }], markets: 12,
-    },
-    {
-      id: 3, sport: 'Football',
-      league: 'La Liga', status: "38'",
-      team1: 'Barcelona', score1: '1', team2: 'Real Madrid', score2: '1',
-      detailHref: '/sports/football/seed-fb-3', odds: [{ label: '1', value: '2.10' }, { label: 'X', value: '3.25' }, { label: '2', value: '3.40' }], markets: 98,
-    },
-    {
-      id: 4, sport: 'Esports',
-      league: 'LEC Spring', status: 'Game 2',
-      team1: 'G2 Esports', score1: '1', team2: 'Fnatic', score2: '0',
-      detailHref: '/sports/esports/seed-es-4', odds: [{ label: '1', value: '1.60' }, { label: '2', value: '2.25' }], markets: 18,
-    },
-    {
-      id: 5, sport: 'Cricket',
-      league: 'IPL', status: '32nd Over',
-      team1: 'Mumbai Indians', score1: '198', team2: 'Chennai SK', score2: '—',
-      detailHref: '/sports/cricket/seed-cr-5', odds: [{ label: '1', value: '1.55' }, { label: '2', value: '2.40' }], markets: 22,
-    },
-    {
-      id: 6, sport: 'Tennis',
-      league: 'WTA Dubai', status: '1st Set',
-      team1: 'Swiatek', score1: '3', team2: 'Sabalenka', score2: '2',
-      detailHref: '/sports/tennis/seed-tn-6', odds: [{ label: '1', value: '1.72' }, { label: '2', value: '2.10' }], markets: 8,
-    },
-  ];
 
   const mapApiEvent = (event, index) => {
     const sportRaw = event.sport || '';
@@ -578,19 +542,36 @@ const App = () => {
     };
   };
 
-  const liveMatches = liveApiEvents
-    ? liveApiEvents.map(mapApiEvent)
-    : FALLBACK_LIVE;
+  const mapUpcomingEvent = (event, index) => {
+    const mapped = mapApiEvent(event, index);
+    const isFootball = String(mapped.sport || '').toLowerCase() === 'football';
 
-  const upcomingMatches = [
-    { sport: 'Football', time: '20:00', team1: 'Man City', team2: 'Liverpool', odds: ['1.95', '3.60', '3.80'], markets: 140, flash: [null, null, null], detailHref: '/sports' },
-    { sport: 'Football', time: '14:30', team1: 'Man Utd', team2: 'Tottenham', odds: ['2.40', '3.40', '2.90'], markets: 128, flash: ['up', null, 'down'], detailHref: '/sports' },
-    { sport: 'Football', time: '17:00', team1: 'Aston Villa', team2: 'Everton', odds: ['1.75', '3.90', '4.50'], markets: 105, flash: [null, null, null], detailHref: '/sports' },
-    { sport: 'Basketball', time: '21:00', team1: 'Celtics', team2: 'Bucks', odds: ['1.80', '—', '2.00'], markets: 52, flash: [null, null, null], detailHref: '/sports/basketball' },
-    { sport: 'Tennis', time: '15:00', team1: 'Sinner', team2: 'Medvedev', odds: ['1.45', '—', '2.75'], markets: 14, flash: [null, null, null], detailHref: '/sports/tennis' },
-    { sport: 'Esports', time: '18:00', team1: 'T1', team2: 'Gen.G', odds: ['1.90', '—', '1.90'], markets: 10, flash: [null, null, null], detailHref: '/sports' },
-    { sport: 'Cricket', time: '10:00', team1: 'India', team2: 'Australia', odds: ['1.65', '—', '2.20'], markets: 30, flash: ['up', null, null], detailHref: '/sports' },
-  ];
+    return {
+      sport: mapped.sport,
+      time: event.startTime
+        ? new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        : '—',
+      team1: mapped.team1,
+      team2: mapped.team2,
+      odds: isFootball
+        ? [
+            mapped.odds[0]?.value || '—',
+            mapped.odds[1]?.value || '—',
+            mapped.odds[2]?.value || '—',
+          ]
+        : [
+            mapped.odds[0]?.value || '—',
+            '—',
+            mapped.odds[1]?.value || '—',
+          ],
+      markets: mapped.markets,
+      flash: [null, null, null],
+      detailHref: mapped.detailHref,
+    };
+  };
+
+  const liveMatches = liveApiEvents.map(mapApiEvent);
+  const upcomingMatches = upcomingApiEvents.map(mapUpcomingEvent);
 
   const filterSportName = (f) => f.replace(/\s*\(.*\)/, '');
   const filterCounts = {};
@@ -623,7 +604,7 @@ const App = () => {
     { label: 'My Bets', href: '/my-bets' },
     { label: 'Account', href: '/account' },
   ];
-  const { pathname } = useLocation();
+  const pathname = usePathname();
 
   const stakeNum = parseFloat(stake) || 0;
   const totalOdds = slipSelections.length > 0
@@ -648,7 +629,7 @@ const App = () => {
 
   const handleQuickStake = (amount) => {
     if (amount === 'MAX') {
-      setStake('2450.50');
+      setStake(String((Number(balance) || 0).toFixed(2)));
     } else {
       const num = parseFloat(stake) || 0;
       setStake((num + parseFloat(amount.replace('+', ''))).toFixed(2));
@@ -660,7 +641,7 @@ const App = () => {
     setBetError(null);
 
     if (!isAuthenticated) {
-      navigate('/login');
+      router.push('/login');
       return;
     }
 
@@ -696,7 +677,7 @@ const App = () => {
     } finally {
       setIsPlacing(false);
     }
-  }, [slipSelections, stake, balance, isAuthenticated, isPlacing, apiPlaceBet, navigate]);
+  }, [slipSelections, stake, balance, isAuthenticated, isPlacing, apiPlaceBet, router]);
 
   const toggleFavorite = (key) => {
     setFavorites(prev => ({ ...prev, [key]: !prev[key] }));
@@ -721,7 +702,7 @@ const App = () => {
               return (
                 <Link
                   key={href}
-                  to={href}
+                  href={href}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '6px',
@@ -820,7 +801,7 @@ const App = () => {
               return (
                 <Link
                   key={item.href}
-                  to={item.href}
+                  href={item.href}
                   style={{ textDecoration: 'none' }}
                 >
                   <NavLink active={quickActive} badge={item.badge}>
@@ -836,7 +817,7 @@ const App = () => {
             <div style={{ color: '#64748B', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '12px', paddingLeft: '8px' }}>
               All Sports
             </div>
-            <NavLink onClick={() => { setActiveSideNav('Football'); navigate('/sports/football'); }} active={activeSideNav === 'Football'} badge={sportCounts.football != null ? String(sportCounts.football) : '...'}>
+            <NavLink onClick={() => { setActiveSideNav('Football'); router.push('/sports/football'); }} active={activeSideNav === 'Football'} badge={sportCounts.football != null ? String(sportCounts.football) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
@@ -854,7 +835,7 @@ const App = () => {
                 return (
                   <Link
                     key={item.name}
-                    to={`/sports/football?league=${item.slug}`}
+                    href={`/sports/football?league=${item.slug}`}
                     onMouseEnter={(e) => { e.currentTarget.style.color = '#F1F5F9'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; }}
                     style={{
@@ -875,25 +856,25 @@ const App = () => {
               })}
             </div>
 
-            <NavLink onClick={() => { setActiveSideNav('Tennis'); navigate('/sports/tennis'); }} active={activeSideNav === 'Tennis'} badge={sportCounts.tennis != null ? String(sportCounts.tennis) : '...'}>
+            <NavLink onClick={() => { setActiveSideNav('Tennis'); router.push('/sports/tennis'); }} active={activeSideNav === 'Tennis'} badge={sportCounts.tennis != null ? String(sportCounts.tennis) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.05-1.09.13-1.62L9 15.24V16c0 .55.45 1 1 1h2v-1.12l5.08 2.6c-1.39 1.01-3.13 1.52-5.08 1.52z" />
               </svg>
               Tennis
             </NavLink>
-            <NavLink onClick={() => { setActiveSideNav('Basketball'); navigate('/sports/basketball'); }} active={activeSideNav === 'Basketball'} badge={sportCounts.basketball != null ? String(sportCounts.basketball) : '...'}>
+            <NavLink onClick={() => { setActiveSideNav('Basketball'); router.push('/sports/basketball'); }} active={activeSideNav === 'Basketball'} badge={sportCounts.basketball != null ? String(sportCounts.basketball) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 14c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
               </svg>
               Basketball
             </NavLink>
-            <NavLink onClick={() => { setActiveSideNav('Golf'); navigate('/sports/golf'); }} active={activeSideNav === 'Golf'} badge={sportCounts.golf != null ? String(sportCounts.golf) : '...'}>
+            <NavLink onClick={() => { setActiveSideNav('Golf'); router.push('/sports/golf'); }} active={activeSideNav === 'Golf'} badge={sportCounts.golf != null ? String(sportCounts.golf) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M6 3v18h2v-6h8l-3-4 3-4H8V3z" />
               </svg>
               Golf
             </NavLink>
-            <NavLink onClick={() => { setActiveSideNav('Esports'); navigate('/sports/esports'); }} active={activeSideNav === 'Esports'} badge={sportCounts.esports != null ? String(sportCounts.esports) : '...'}>
+            <NavLink onClick={() => { setActiveSideNav('Esports'); router.push('/sports/esports'); }} active={activeSideNav === 'Esports'} badge={sportCounts.esports != null ? String(sportCounts.esports) : '...'}>
               <svg style={{ width: '18px', height: '18px', opacity: 0.7 }} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3 6h18v12H3V6zm3 2v8h12V8H6zm2 2h2v2H8v-2zm6 0h2v2h-2v-2z" />
               </svg>

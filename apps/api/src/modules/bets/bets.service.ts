@@ -3,6 +3,7 @@ import db from '../../config/database';
 import { writeSystemLog } from '../../utils/systemLog';
 import { combinations, SYSTEM_BET_TYPES, calculatePlaceOdds, isQuarterLine, getSystemBetCount } from './bets.utils';
 import { emitToUser } from '../../utils/socketEvents';
+import { getLiveEvents, getMarkets } from '../sports-data/sports-data.service';
 
 interface BetSelection {
   event_id: number | string;
@@ -52,20 +53,30 @@ async function snapshotOdds(selections: BetSelection[]) {
       });
       totalOdds *= matchedSel.odds;
     } else {
-      // No DB row — this is a live API event. Accept client-provided odds
-      // with sanity checks (odds must be > 1.0 and < 10000).
-      const clientOdds = Number(sel.odds);
-      if (!clientOdds || clientOdds < 1.01 || clientOdds > 10000) {
-        throw new Error(`INVALID_ODDS:${sel.event_id}:${clientOdds}`);
+      const eventId = String(sel.event_id);
+      const aggregate = await getLiveEvents();
+      const aggregateEvent = [...aggregate.live, ...aggregate.upcoming]
+        .find((event) => String(event.id) === eventId);
+      const candidateMarkets = aggregateEvent?.markets?.length
+        ? aggregateEvent.markets
+        : await getMarkets(eventId);
+      const matchedMarket = (candidateMarkets || []).find((market) => {
+        return market.id === sel.market_type
+          || market.name.toLowerCase() === sel.market_type.toLowerCase();
+      });
+      const matchedSelection = matchedMarket?.selections.find((selection) => selection.name === sel.selection_name);
+
+      if (!matchedMarket || !matchedSelection) {
+        throw new Error(`ODDS_NOT_AVAILABLE:${eventId}:${sel.market_type}:${sel.selection_name}`);
       }
 
       snapshot.push({
-        event_id: String(sel.event_id),
+        event_id: eventId,
         market_type: sel.market_type,
         selection_name: sel.selection_name,
-        odds_at_placement: clientOdds,
+        odds_at_placement: matchedSelection.odds,
       });
-      totalOdds *= clientOdds;
+      totalOdds *= matchedSelection.odds;
     }
   }
 

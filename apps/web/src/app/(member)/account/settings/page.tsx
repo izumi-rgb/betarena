@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 
 type Prefs = {
   oddsFormat: 'decimal' | 'fractional' | 'american';
@@ -27,6 +28,9 @@ const NAV = [
 
 export default function SettingsPage() {
   const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const mustChangePassword = user?.must_change_password === true;
   const [prefs, setPrefs] = useState<Prefs>({
     oddsFormat: 'decimal',
     timezone: 'UTC',
@@ -76,6 +80,7 @@ export default function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      await fetchMe({ silent: true });
     } catch {
       setMessage('Password update failed');
     }
@@ -91,6 +96,11 @@ export default function SettingsPage() {
 
       <main className="mx-auto max-w-5xl space-y-4 p-6">
         <h1 className="text-2xl font-bold">Settings</h1>
+        {mustChangePassword ? (
+          <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            You must change your password before continuing.
+          </div>
+        ) : null}
         {message ? <div className="rounded border border-[#1E293B] bg-[#1A2235] px-3 py-2 text-sm text-[#94A3B8]">{message}</div> : null}
 
         <section className="rounded-xl border border-[#1E293B] bg-[#1A2235] p-4">

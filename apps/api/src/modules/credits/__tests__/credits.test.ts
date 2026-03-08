@@ -66,7 +66,7 @@ describe('Credits Routes', () => {
       const res = await request(app)
         .post(`${API_BASE}/admin/create`)
         .set('Authorization', `Bearer ${adminToken()}`)
-        .send({});
+        .send({ pin: process.env.ADMIN_MINT_PIN });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -78,7 +78,7 @@ describe('Credits Routes', () => {
       const res = await request(app)
         .post(`${API_BASE}/admin/create`)
         .set('Authorization', `Bearer ${adminToken()}`)
-        .send({ amount: 0 });
+        .send({ amount: 0, pin: process.env.ADMIN_MINT_PIN });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -89,7 +89,7 @@ describe('Credits Routes', () => {
       const res = await request(app)
         .post(`${API_BASE}/admin/create`)
         .set('Authorization', `Bearer ${adminToken()}`)
-        .send({ amount: -500 });
+        .send({ amount: -500, pin: process.env.ADMIN_MINT_PIN });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -100,7 +100,7 @@ describe('Credits Routes', () => {
       const res = await request(app)
         .post(`${API_BASE}/admin/create`)
         .set('Authorization', `Bearer ${adminToken()}`)
-        .send({ amount: 'lots' });
+        .send({ amount: 'lots', pin: process.env.ADMIN_MINT_PIN });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);

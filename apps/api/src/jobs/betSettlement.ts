@@ -1,11 +1,12 @@
 import db from '../config/database';
+import redis from '../config/redis';
 import { writeSystemLog } from '../utils/systemLog';
 import logger from '../config/logger';
 import { combinations, SYSTEM_BET_TYPES, calculatePlaceOdds, isQuarterLine } from '../modules/bets/bets.utils';
 import { emitToUser } from '../utils/socketEvents';
 
 interface EventResult {
-  id: number;
+  id: number | string;
   score: any;
   home_score: number;
   away_score: number;
@@ -18,6 +19,34 @@ function parseScore(event: any): EventResult | null {
   const home = parseInt(score.home, 10) || 0;
   const away = parseInt(score.away, 10) || 0;
   return { id: event.id, score, home_score: home, away_score: away, total_goals: home + away };
+}
+
+/**
+ * Look up a finished event result from either:
+ * 1. The DB `events` table (for seeded/persisted events)
+ * 2. The Redis `result:{id}` cache (for live API events stored by sports-data.service)
+ */
+async function getFinishedEventResult(eventId: number | string): Promise<EventResult | null> {
+  // 1. Try DB events table
+  const dbEvent = await db('events').where({ id: eventId }).first();
+  if (dbEvent && dbEvent.status === 'finished') {
+    return parseScore(dbEvent);
+  }
+
+  // 2. Try Redis results cache (set by sports-data.service when event reaches 'ft')
+  try {
+    const cached = await redis.get(`result:${eventId}`);
+    if (cached) {
+      const data = JSON.parse(cached);
+      const home = parseInt(data.score?.home, 10) || 0;
+      const away = parseInt(data.score?.away, 10) || 0;
+      return { id: data.id, score: data.score, home_score: home, away_score: away, total_goals: home + away };
+    }
+  } catch (err) {
+    logger.warn('Redis result lookup failed', { eventId, error: (err as Error).message });
+  }
+
+  return null;
 }
 
 function didSelectionWin(sel: any, eventResult: EventResult): boolean | null {
@@ -112,13 +141,8 @@ function settleOverUnder(
 
 export async function settleBets(): Promise<void> {
   try {
-    const finishedEventIds = await db('events')
-      .where({ status: 'finished' })
-      .pluck('id');
-
-    if (finishedEventIds.length === 0) return;
-
     const openBets = await db('bets').where({ status: 'open' });
+    if (openBets.length === 0) return;
 
     for (const bet of openBets) {
       try {
@@ -126,17 +150,20 @@ export async function settleBets(): Promise<void> {
         const oddsSnapshot = typeof bet.odds_snapshot === 'string' ? JSON.parse(bet.odds_snapshot) : bet.odds_snapshot;
         const metadata = bet.metadata ? (typeof bet.metadata === 'string' ? JSON.parse(bet.metadata) : bet.metadata) : {};
 
-        const relevantEventIds = selections.map((s: any) => s.event_id);
-        const allFinished = relevantEventIds.every((eid: number) => finishedEventIds.includes(eid));
-        if (!allFinished) continue;
+        // Look up each event's result from DB or Redis cache
+        const events = new Map<number | string, EventResult | null>();
+        let allFinished = true;
 
-        const events: Map<number, EventResult | null> = new Map();
         for (const sel of selections) {
-          if (!events.has(sel.event_id)) {
-            const event = await db('events').where({ id: sel.event_id }).first();
-            events.set(sel.event_id, parseScore(event));
+          const eid = sel.event_id;
+          if (!events.has(eid)) {
+            const result = await getFinishedEventResult(eid);
+            events.set(eid, result);
+            if (!result) allFinished = false;
           }
         }
+
+        if (!allFinished) continue; // not all events finished yet — skip
 
         const anyNull = selections.some((s: any) => !events.get(s.event_id));
         if (anyNull) {
@@ -185,7 +212,7 @@ export async function settleBets(): Promise<void> {
 }
 
 function settleStandardBet(
-  selections: any[], oddsSnapshot: any[], events: Map<number, EventResult | null>, stake: number
+  selections: any[], oddsSnapshot: any[], events: Map<number | string, EventResult | null>, stake: number
 ): { finalStatus: 'won' | 'lost'; payout: number } {
   let allWon = true;
   for (const sel of selections) {
@@ -201,7 +228,7 @@ function settleStandardBet(
 }
 
 function settleSystemBet(
-  selections: any[], oddsSnapshot: any[], events: Map<number, EventResult | null>, unitStake: number, metadata: any
+  selections: any[], oddsSnapshot: any[], events: Map<number | string, EventResult | null>, unitStake: number, metadata: any
 ): { finalStatus: 'won' | 'lost'; payout: number } {
   const systemType = metadata.system_type;
   const config = SYSTEM_BET_TYPES[systemType];
@@ -229,7 +256,7 @@ function settleSystemBet(
 }
 
 function settleEachWayBet(
-  selections: any[], oddsSnapshot: any[], events: Map<number, EventResult | null>, stake: number, metadata: any
+  selections: any[], oddsSnapshot: any[], events: Map<number | string, EventResult | null>, stake: number, metadata: any
 ): { finalStatus: 'won' | 'lost'; payout: number } {
   const halfStake = stake / 2;
   const odds = (oddsSnapshot[0] as any).odds_at_placement || 1;
@@ -249,7 +276,7 @@ function settleEachWayBet(
 }
 
 function settleAHBet(
-  selections: any[], oddsSnapshot: any[], events: Map<number, EventResult | null>, stake: number, metadata: any
+  selections: any[], oddsSnapshot: any[], events: Map<number | string, EventResult | null>, stake: number, metadata: any
 ): { finalStatus: 'won' | 'lost' | 'void'; payout: number } {
   const odds = (oddsSnapshot[0] as any).odds_at_placement || 1;
   const handicapLine = metadata.handicap_line || 0;
@@ -263,7 +290,7 @@ function settleAHBet(
 }
 
 function settleOUBet(
-  selections: any[], oddsSnapshot: any[], events: Map<number, EventResult | null>, stake: number, metadata: any
+  selections: any[], oddsSnapshot: any[], events: Map<number | string, EventResult | null>, stake: number, metadata: any
 ): { finalStatus: 'won' | 'lost' | 'void'; payout: number } {
   const odds = (oddsSnapshot[0] as any).odds_at_placement || 1;
   const totalLine = metadata.total_line || 2.5;
@@ -274,10 +301,14 @@ function settleOUBet(
 }
 
 async function settleVoid(bet: any): Promise<void> {
-  await db.transaction(async (trx) => {
-    await trx('bets')
-      .where({ id: bet.id })
+  const settled = await db.transaction(async (trx) => {
+    const updated = await trx('bets')
+      .where({ id: bet.id, status: 'open' })
       .update({ status: 'void', settled_at: db.fn.now() });
+
+    if (updated === 0) {
+      return false;
+    }
 
     await trx('credit_accounts')
       .where({ user_id: bet.user_id })
@@ -290,7 +321,13 @@ async function settleVoid(bet: any): Promise<void> {
       type: 'create',
       note: `Void bet refund: ${bet.bet_uid}`,
     });
+
+    return true;
   });
+
+  if (!settled) {
+    return;
+  }
 
   await writeSystemLog({
     user_id: bet.user_id,
@@ -311,11 +348,17 @@ async function applySettlement(bet: any, status: 'won' | 'lost' | 'void', payout
     return;
   }
 
+  let settled = false;
+
   if (status === 'won') {
-    await db.transaction(async (trx) => {
-      await trx('bets')
-        .where({ id: bet.id })
+    settled = await db.transaction(async (trx) => {
+      const updated = await trx('bets')
+        .where({ id: bet.id, status: 'open' })
         .update({ status: 'won', actual_win: payout, settled_at: db.fn.now() });
+
+      if (updated === 0) {
+        return false;
+      }
 
       await trx('credit_accounts')
         .where({ user_id: bet.user_id })
@@ -328,11 +371,18 @@ async function applySettlement(bet: any, status: 'won' | 'lost' | 'void', payout
         type: 'create',
         note: `Bet won: ${bet.bet_uid}`,
       });
+
+      return true;
     });
   } else {
-    await db('bets')
-      .where({ id: bet.id })
+    const updated = await db('bets')
+      .where({ id: bet.id, status: 'open' })
       .update({ status: 'lost', actual_win: '0.00', settled_at: db.fn.now() });
+    settled = updated > 0;
+  }
+
+  if (!settled) {
+    return;
   }
 
   await writeSystemLog({

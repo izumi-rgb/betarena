@@ -424,19 +424,6 @@ export default function AgentDashboardPage() {
                 </div>
               </Link>
 
-              {/* Risk Management */}
-              <div className="group flex cursor-not-allowed items-center gap-4 rounded-xl border border-[#1E293B] bg-[#1A2235] p-5 text-left opacity-60">
-                <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[10px] bg-[rgba(239,68,68,0.15)]">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-[14px] font-semibold text-white">Risk Management</div>
-                  <div className="text-[12px] text-[#64748B]">Coming soon</div>
-                </div>
-              </div>
             </div>
           </div>
 

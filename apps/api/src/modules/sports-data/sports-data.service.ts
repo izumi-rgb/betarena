@@ -9,9 +9,10 @@ import * as apiHandball from './providers/api-handball';
 import * as apiVolleyball from './providers/api-volleyball';
 import * as espn from './providers/espn-hidden';
 import * as oddspapi from './providers/oddspapi';
-import * as theOddsApi from './providers/the-odds-api';
+import * as oddsApiIo from './providers/odds-api-io';
 import * as cricketData from './providers/cricket-data';
 import * as cricbuzz from './providers/cricbuzz';
+import * as fotmobLive from './providers/fotmob-live';
 import * as theSportsDb from './providers/thesportsdb';
 import {
   normalizeApiFootball,
@@ -24,6 +25,7 @@ import {
   normalizeESPN,
   normalizeCricket,
   normalizeCricbuzz,
+  normalizeFotmob,
   normalizeOddsMarkets,
 } from './normalizer/normalizer';
 import type { LiveEvent, Market } from './types';
@@ -224,9 +226,9 @@ function teamNamesMatch(a: string, b: string): boolean {
   return shared.length >= 1 && shared.length >= Math.max(threshold * 0.3, 1);
 }
 
-// OddsPapi sport slugs for fixture-based odds fetching
+// ODDS-API sport slugs for fixture-based odds fetching
 const ODDSPAPI_SPORTS: import('./providers/oddspapi').OddsPapiSport[] = [
-  'soccer', 'basketball', 'baseball', 'cricket', 'ice-hockey',
+  'soccer', 'basketball', 'tennis', 'baseball', 'cricket', 'ice-hockey',
 ];
 
 function addToLookup(lookup: Map<string, Market[]>, items: unknown[]): void {
@@ -246,39 +248,43 @@ function addToLookup(lookup: Map<string, Market[]>, items: unknown[]): void {
 
 /**
  * Build a lookup of odds keyed by normalized team-name pairs.
- * Primary: OddsPapi fixture-based API (200 req/month, heavily cached).
- * Fallback: The Odds API bulk (500 credits/month).
+ * Uses ODDS-API (RapidAPI) as the sole odds source.
  */
 async function buildOddsLookup(): Promise<Map<string, Market[]>> {
   const lookup = new Map<string, Market[]>();
 
-  // 1. OddsPapi: fetch odds per sport (fixture-based, cached 6h)
+  // Primary: odds-api.io (100 req/hour, ML + Totals markets, 200+ live events)
+  try {
+    const sportsFilter = new Set(['football', 'basketball', 'tennis', 'baseball', 'ice-hockey', 'cricket', 'handball', 'volleyball', 'rugby']);
+    const ioResults = await oddsApiIo.getAllLiveOdds(sportsFilter);
+    if (Array.isArray(ioResults)) {
+      addToLookup(lookup, ioResults);
+    }
+    if (ioResults.length > 0) {
+      logger.info(`odds-api.io: ${ioResults.length} events with odds added to lookup`);
+    }
+  } catch (err) {
+    logger.info('odds-api.io odds fetch failed', { error: (err as Error).message });
+  }
+
+  // Secondary: ODDS-API via RapidAPI (fills gaps for sports not covered above)
   try {
     const results = await Promise.allSettled(
       ODDSPAPI_SPORTS.map(sport => oddspapi.getOddsForSport(sport))
     );
+    let added = 0;
     for (const result of results) {
       if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+        const beforeSize = lookup.size;
         addToLookup(lookup, result.value);
+        added += lookup.size - beforeSize;
       }
     }
-    if (lookup.size > 0) {
-      logger.info(`OddsPapi: ${lookup.size} events with odds`);
+    if (added > 0) {
+      logger.info(`ODDS-API (RapidAPI): added ${added} additional events to lookup`);
     }
   } catch (err) {
-    logger.warn('OddsPapi odds failed', { error: (err as Error).message });
-  }
-
-  // 2. Fallback: The Odds API bulk (if OddsPapi yielded too few)
-  if (lookup.size < 10) {
-    try {
-      const fallback = await theOddsApi.getUpcomingOdds();
-      if (Array.isArray(fallback)) {
-        addToLookup(lookup, fallback);
-      }
-    } catch (err) {
-      logger.warn('The Odds API fallback failed', { error: (err as Error).message });
-    }
+    logger.info('ODDS-API odds fetch failed', { error: (err as Error).message });
   }
 
   logger.info(`Odds lookup built: ${lookup.size} events with odds`);
@@ -304,15 +310,65 @@ function findOddsForEvent(event: LiveEvent, lookup: Map<string, Market[]>): Mark
 // Main aggregation
 // ---------------------------------------------------------------------------
 
-export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: LiveEvent[] }> {
-  const events: LiveEvent[] = [];
+const AGGREGATE_CACHE_KEY = 'aggregate:live-events';
+const AGGREGATE_CACHE_TTL = 180; // 3 minutes
 
+/**
+ * Fetches live events from all providers, enriches with odds, and stores
+ * the result in Redis under `aggregate:live-events` with a 3-minute TTL.
+ * Called by the sports-data cron every 3 minutes and as a fallback from getLiveEvents().
+ */
+export async function refreshAggregateCache(): Promise<{ live: LiveEvent[]; upcoming: LiveEvent[] }> {
+  const events: LiveEvent[] = [];
+  const footballIds = new Set<string>();
+
+  // FotMob Live — FREE, no daily limit. Primary football source for live scores.
+  try {
+    const fotmobMatches = await fotmobLive.getLiveMatches();
+    if (Array.isArray(fotmobMatches)) {
+      for (const raw of fotmobMatches) {
+        const event = normalizeFotmob(raw);
+        if (event) {
+          events.push(event);
+          // Track home+away names to deduplicate with API-Football
+          footballIds.add(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`);
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch FotMob live data', { error: (err as Error).message });
+  }
+
+  // Also fetch today's upcoming matches from FotMob (pre-match)
+  try {
+    const fotmobToday = await fotmobLive.getTodayMatches();
+    if (Array.isArray(fotmobToday)) {
+      for (const raw of fotmobToday) {
+        const event = normalizeFotmob(raw);
+        if (event && !footballIds.has(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`)) {
+          events.push(event);
+          footballIds.add(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`);
+        }
+      }
+    }
+  } catch (err) {
+    logger.debug('Failed to fetch FotMob today matches', { error: (err as Error).message });
+  }
+
+  // API-Football — richer data (logos, period scores) but 100/day limit.
+  // Only add matches not already covered by FotMob.
   try {
     const footballFixtures = await apiFootball.getLiveFixtures();
     if (Array.isArray(footballFixtures)) {
       for (const raw of footballFixtures) {
         const event = normalizeApiFootball(raw);
-        if (event) events.push(event);
+        if (event) {
+          const key = `${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`;
+          if (!footballIds.has(key)) {
+            events.push(event);
+            footballIds.add(key);
+          }
+        }
       }
     }
   } catch (err) {
@@ -472,13 +528,32 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
     logger.warn('Odds enrichment failed (non-fatal)', { error: (err as Error).message });
   }
 
-  // Split by status: only truly live events (not paused/ht like stumps, breaks)
-  // Allow events without odds only if they're from tier-1/2 leagues (don't show minor events with no odds)
+  // Store finished event results in Redis for bet settlement (24h TTL).
+  // Live API events aren't in the DB, so settlement needs this cache.
+  for (const e of events) {
+    if (e.status === 'ft') {
+      try {
+        await redis.setex(`result:${e.id}`, 86400, JSON.stringify({
+          id: e.id,
+          sport: e.sport,
+          score: e.score,
+          status: e.status,
+          homeTeam: e.homeTeam.name,
+          awayTeam: e.awayTeam.name,
+        }));
+      } catch { /* non-fatal */ }
+    }
+  }
+
+  // Split by status: show all live events from known providers.
+  // Events without odds still show — frontend renders "Odds unavailable" gracefully.
+  // Only filter out events missing team names.
   const liveOnly = events.filter(e => {
     if (e.status !== 'live') return false;
-    if (e.markets.length > 0) return true;
-    // Allow odds-less events from major leagues (cricket tests, MLB, WBC, etc.)
-    return getLeagueTier(e) <= 2;
+    // Must have valid team names
+    if (!e.homeTeam.name || !e.awayTeam.name) return false;
+    if (e.homeTeam.name === 'Home' && e.awayTeam.name === 'Away') return false;
+    return true;
   });
   const upcoming = events.filter(e => e.status === 'pre');
 
@@ -488,8 +563,43 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
   upcoming.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   const cappedUpcoming = upcoming.slice(0, MAX_EVENTS_TO_SHOW);
 
-  logger.info(`getLiveEvents: ${events.length} raw → ${stableLive.length} live + ${cappedUpcoming.length} upcoming`);
-  return { live: stableLive, upcoming: cappedUpcoming };
+  const statusCounts: Record<string, number> = {};
+  for (const e of events) statusCounts[e.status] = (statusCounts[e.status] || 0) + 1;
+  logger.info(`refreshAggregateCache: ${events.length} raw → ${stableLive.length} live + ${cappedUpcoming.length} upcoming`, { statusCounts });
+
+  const result = { live: stableLive, upcoming: cappedUpcoming };
+
+  // Store in Redis aggregate cache
+  try {
+    await redis.setex(AGGREGATE_CACHE_KEY, AGGREGATE_CACHE_TTL, JSON.stringify(result));
+  } catch (err) {
+    logger.warn('Failed to write aggregate cache', { error: (err as Error).message });
+  }
+
+  return result;
+}
+
+export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: LiveEvent[] }> {
+  // Try aggregate cache first
+  try {
+    const cached = await redis.get(AGGREGATE_CACHE_KEY);
+    if (cached) {
+      logger.info('getLiveEvents: aggregate cache HIT');
+      const parsed = JSON.parse(cached) as { live: LiveEvent[]; upcoming: LiveEvent[] };
+      // Restore Date objects serialised as strings by JSON
+      for (const e of [...parsed.live, ...parsed.upcoming]) {
+        e.startTime = new Date(e.startTime);
+        e.lastUpdated = new Date(e.lastUpdated);
+      }
+      return parsed;
+    }
+  } catch (err) {
+    logger.warn('getLiveEvents: aggregate cache read failed', { error: (err as Error).message });
+  }
+
+  // Cache miss — fall back to full refresh
+  logger.info('getLiveEvents: aggregate cache MISS, refreshing');
+  return refreshAggregateCache();
 }
 
 export async function getEvent(eventId: string): Promise<LiveEvent | null> {
@@ -510,25 +620,33 @@ export async function getEvent(eventId: string): Promise<LiveEvent | null> {
 }
 
 export async function getMarkets(eventId: string): Promise<Market[]> {
-  // Use the bulk odds lookup and match by event ID from enrichment
+  // Try to find odds from the aggregate cache first (no API call)
   try {
-    const oddsLookup = await buildOddsLookup();
-    // The lookup is keyed by team names, not event IDs.
-    // For individual event pages, try The Odds API by sport.
-    const raw = await theOddsApi.getOddsForSport('upcoming');
-    if (Array.isArray(raw)) {
-      for (const item of raw) {
-        const r = item as Record<string, unknown>;
-        if (String(r.id) === eventId) {
-          return normalizeOddsMarkets(r, 'the-odds-api');
-        }
+    const cached = await redis.get(AGGREGATE_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached) as { live: LiveEvent[]; upcoming: LiveEvent[] };
+      const allEvents = [...(parsed.live || []), ...(parsed.upcoming || [])];
+      const match = allEvents.find(e => String(e.id) === eventId);
+      if (match?.markets && match.markets.length > 0) {
+        return match.markets;
       }
     }
-
-    // If not found by ID, return any odds already attached from the lookup
-    // (the event detail page re-fetches from getLiveEvents cache)
   } catch (err) {
-    logger.warn('Markets fetch failed', { eventId, error: (err as Error).message });
+    logger.debug('Markets cache lookup failed', { eventId, error: (err as Error).message });
+  }
+
+  // Fall back to building fresh odds lookup
+  try {
+    const oddsLookup = await buildOddsLookup();
+    // Try to match by iterating the lookup (keyed by team names)
+    for (const markets of oddsLookup.values()) {
+      if (markets.length > 0) {
+        // The lookup doesn't store event IDs, so we can't match directly.
+        // Return empty — the event detail page gets odds from the live feed.
+      }
+    }
+  } catch (err) {
+    logger.debug('Markets fetch failed', { eventId, error: (err as Error).message });
   }
 
   return [];

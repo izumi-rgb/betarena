@@ -1,6 +1,50 @@
 import axios, { AxiosRequestConfig } from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+function resolveApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL;
+
+  if (typeof window === 'undefined') {
+    return configured ?? 'http://localhost:4000';
+  }
+
+  const browserBase = `${window.location.protocol}//${window.location.hostname}:4000`;
+  const shouldUseBrowserHost = (hostname: string): boolean => {
+    if (['localhost', '127.0.0.1', '0.0.0.0', 'api'].includes(hostname)) {
+      return true;
+    }
+
+    if (/^10\.\d+\.\d+\.\d+$/.test(hostname)) {
+      return true;
+    }
+
+    if (/^192\.168\.\d+\.\d+$/.test(hostname)) {
+      return true;
+    }
+
+    if (/^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname)) {
+      return true;
+    }
+
+    return !hostname.includes('.') && hostname !== window.location.hostname;
+  };
+
+  if (!configured) {
+    return browserBase;
+  }
+
+  try {
+    const configuredUrl = new URL(configured);
+    if (shouldUseBrowserHost(configuredUrl.hostname)) {
+      return browserBase;
+    }
+  } catch {
+    return browserBase;
+  }
+
+  return configured;
+}
+
+const API_BASE = resolveApiBase();
 
 const api = axios.create({
   baseURL: API_BASE,

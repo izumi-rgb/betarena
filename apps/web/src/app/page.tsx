@@ -1,5 +1,1 @@
-import { redirect } from 'next/navigation';
-
-export default function RootPage() {
-  redirect('/sports');
-}
+export { default } from './(member)/sports/page';

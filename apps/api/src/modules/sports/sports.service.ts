@@ -102,7 +102,7 @@ export async function listSports(): Promise<{ name: string; slug: string; events
 export async function getSportCounts(): Promise<Record<string, number>> {
   const rows = await db('events')
     .select('sport')
-    .whereIn('status', ['upcoming', 'live'])
+    .whereIn('status', ['scheduled', 'live'])
     .count('id as count')
     .groupBy('sport');
   const counts: Record<string, number> = {};
@@ -188,13 +188,50 @@ export async function getEventMarkets(eventId: number) {
   return result;
 }
 
+/** Fetch upcoming/scheduled events from DB for the home page. */
+export async function getUpcomingEvents() {
+  const rows = await db('events')
+    .where({ status: 'scheduled' })
+    .orderBy('starts_at', 'asc')
+    .limit(100);
+  if (rows.length === 0) return [];
+  const eventIds = rows.map((r: any) => r.id);
+  const oddsRows = await db('odds').whereIn('event_id', eventIds);
+  const marketsByEvent: Record<number, any[]> = {};
+  for (const o of oddsRows) {
+    if (!marketsByEvent[o.event_id]) marketsByEvent[o.event_id] = [];
+    marketsByEvent[o.event_id].push(mapOddsRow(o));
+  }
+  return rows.map((r: any) => mapEventRow(r, marketsByEvent[r.id] || []));
+}
+
 export async function getLiveEvents() {
+  let live: any[] = [];
+  let upcoming: any[] = [];
   try {
-    return await SportsDataService.getLiveEvents();
+    const result = await SportsDataService.getLiveEvents();
+    live = Array.isArray(result) ? result : (result?.live ?? []);
+    // Use API's upcoming when present so API data is shown
+    if (result && !Array.isArray(result) && Array.isArray(result.upcoming)) {
+      upcoming = result.upcoming;
+    }
   } catch (err) {
     logger.warn('SportsDataService.getLiveEvents failed', {
       error: (err as Error).message,
     });
+    live = [];
   }
-  return { live: [], upcoming: [] };
+
+  // Real-only live policy: never backfill "live" from local DB/demo data.
+  // If no upcoming from API, use DB fixtures so public pages still have browseable scheduled events.
+  if (upcoming.length === 0) {
+    try {
+      upcoming = await getUpcomingEvents();
+    } catch (_) {
+      // non-fatal
+    }
+  }
+  const liveIds = new Set(live.map((e: any) => String(e.id)));
+  upcoming = upcoming.filter((e: any) => !liveIds.has(String(e.id)));
+  return { live, upcoming };
 }

@@ -1,44 +1,66 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api';
 
 export default function EsportsLandingPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchAndNavigate = useCallback(async () => {
+    setError(false);
+    setLoading(true);
+    try {
+      const uncachedEventsUrl = `/api/sports/esports/events?ts=${Date.now()}`;
+      const res = await apiGet<Array<{ id: number | string }>>(uncachedEventsUrl, {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
+      const first = res.data?.[0];
+      if (first) {
+        router.replace(`/sports/esports/${first.id}`);
+        return;
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
   useEffect(() => {
-    let cancelled = false;
+    fetchAndNavigate();
+  }, [fetchAndNavigate]);
 
-    const resolveFirstEvent = async () => {
-      try {
-        const uncachedEventsUrl = `/api/sports/esports/events?ts=${Date.now()}`;
-        const res = await apiGet<Array<{ id: number | string }>>(uncachedEventsUrl, {
-          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-        });
-        const first = res.data?.[0];
-        if (!cancelled && first) {
-          router.replace(`/sports/esports/${first.id}`);
-          return;
-        }
-      } catch {
-        // No esports events available.
-      }
+  if (loading) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#0B0E1A] text-[#94A3B8] gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00C37B] border-t-transparent" />
+        <div className="text-[14px]">Loading esports events…</div>
+      </div>
+    );
+  }
 
-      // No live esports events — show empty state (do not redirect to demo)
-    };
-
-    resolveFirstEvent();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+  if (error) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#0B0E1A] text-[#94A3B8] gap-4">
+        <div className="text-[32px]">⚠️</div>
+        <div className="text-[14px]">Unable to load esports events.</div>
+        <button
+          onClick={fetchAndNavigate}
+          className="rounded-lg border border-[#00C37B] bg-[#00C37B]/10 px-4 py-2 text-sm font-semibold text-[#00C37B] hover:bg-[#00C37B]/20"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-[#0B0E1A] text-[#94A3B8] gap-3">
       <div className="text-[32px]">🎮</div>
-      <div className="text-[14px]">No live esports events right now</div>
+      <div className="text-[14px]">No esports events right now</div>
     </div>
   );
 }

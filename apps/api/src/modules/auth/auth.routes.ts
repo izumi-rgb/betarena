@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { login, logout, refreshAccessToken, getMe, updatePreferences, changePassword } from './auth.service';
+import { login, logout, refreshAccessToken, getMe, updatePreferences, changePassword, listSessions, revokeSession } from './auth.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { loginRateLimiter } from '../../middleware/rateLimiter.middleware';
 import { REFRESH_TOKEN_EXPIRY_SECONDS } from '../../config/constants';
@@ -239,6 +239,39 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
       message: 'Failed to change password',
       error: 'INTERNAL_ERROR',
     });
+  }
+});
+
+// Admin-only: list all active sessions
+router.get('/sessions', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ success: false, data: null, message: 'Admin only', error: 'FORBIDDEN' });
+      return;
+    }
+    const sessions = await listSessions();
+    res.json({ success: true, data: sessions, message: 'Sessions retrieved', error: null });
+  } catch {
+    res.status(500).json({ success: false, data: null, message: 'Failed to list sessions', error: 'INTERNAL_ERROR' });
+  }
+});
+
+// Admin-only: revoke a session
+router.delete('/sessions/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ success: false, data: null, message: 'Admin only', error: 'FORBIDDEN' });
+      return;
+    }
+    const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const deleted = await revokeSession(sessionId);
+    if (!deleted) {
+      res.status(404).json({ success: false, data: null, message: 'Session not found', error: 'NOT_FOUND' });
+      return;
+    }
+    res.json({ success: true, data: null, message: 'Session revoked', error: null });
+  } catch {
+    res.status(500).json({ success: false, data: null, message: 'Failed to revoke session', error: 'INTERNAL_ERROR' });
   }
 });
 
