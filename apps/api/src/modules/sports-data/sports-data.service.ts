@@ -224,9 +224,19 @@ function teamNamesMatch(a: string, b: string): boolean {
   return shared.length >= 1 && shared.length >= Math.max(threshold * 0.3, 1);
 }
 
-// The Odds API sport keys for baseball and cricket
-const BASEBALL_SPORT_KEYS = ['baseball_mlb', 'baseball_mlb_preseason', 'baseball_ncaa'];
-const CRICKET_SPORT_KEYS = [
+// OddsPapi/The Odds API sport keys — used for sport-specific odds fetching
+const ALL_SPORT_KEYS = [
+  // Football/Soccer
+  'soccer_epl', 'soccer_spain_la_liga', 'soccer_germany_bundesliga',
+  'soccer_italy_serie_a', 'soccer_france_ligue_one', 'soccer_usa_mls',
+  'soccer_mexico_ligamx', 'soccer_uefa_champs_league',
+  // Basketball
+  'basketball_nba', 'basketball_ncaab',
+  // Ice Hockey
+  'icehockey_nhl',
+  // Baseball
+  'baseball_mlb', 'baseball_mlb_preseason', 'baseball_ncaa',
+  // Cricket
   'cricket_test_match', 'cricket_ipl', 'cricket_odi',
   'cricket_big_bash', 'cricket_international_t20', 'cricket_t20_world_cup',
   'cricket_icc_world_cup', 'cricket_psl',
@@ -249,28 +259,31 @@ function addToLookup(lookup: Map<string, Market[]>, items: unknown[]): void {
 
 /**
  * Build a lookup of odds keyed by normalized team-name pairs.
- * Uses OddsPapi as primary (free forever), The Odds API as fallback.
- * Also fetches sport-specific live odds for baseball and cricket.
+ * Uses OddsPapi sport-specific endpoints (free forever, no credit limit).
+ * Falls back to The Odds API if OddsPapi yields too few results.
  */
 async function buildOddsLookup(): Promise<Map<string, Market[]>> {
   const lookup = new Map<string, Market[]>();
 
-  // 1. OddsPapi bulk upcoming odds (primary — free, no credit limit)
+  // 1. OddsPapi: fetch pre-match odds for all major sports in parallel
   try {
-    const upcoming = await oddspapi.getUpcomingOdds();
-    if (Array.isArray(upcoming)) {
-      addToLookup(lookup, upcoming);
-      logger.info(`OddsPapi bulk: ${lookup.size} events with odds`);
+    const preResults = await Promise.allSettled(
+      ALL_SPORT_KEYS.map(key => oddspapi.getPreMatchOdds(key))
+    );
+    for (const result of preResults) {
+      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+        addToLookup(lookup, result.value);
+      }
     }
+    logger.info(`OddsPapi pre-match: ${lookup.size} events with odds`);
   } catch (err) {
-    logger.warn('OddsPapi bulk odds failed', { error: (err as Error).message });
+    logger.warn('OddsPapi pre-match odds failed', { error: (err as Error).message });
   }
 
-  // 2. OddsPapi sport-specific live odds for baseball and cricket
-  const sportKeys = [...BASEBALL_SPORT_KEYS, ...CRICKET_SPORT_KEYS];
+  // 2. OddsPapi: fetch live in-play odds for all major sports
   try {
     const liveResults = await Promise.allSettled(
-      sportKeys.map(key => oddspapi.getLiveOdds(key))
+      ALL_SPORT_KEYS.map(key => oddspapi.getLiveOdds(key))
     );
     for (const result of liveResults) {
       if (result.status === 'fulfilled' && Array.isArray(result.value)) {
@@ -278,24 +291,10 @@ async function buildOddsLookup(): Promise<Map<string, Market[]>> {
       }
     }
   } catch (err) {
-    logger.warn('OddsPapi sport-specific odds failed', { error: (err as Error).message });
+    logger.warn('OddsPapi live odds failed', { error: (err as Error).message });
   }
 
-  // 3. OddsPapi pre-match odds for same sports (catches events not yet in live feed)
-  try {
-    const preResults = await Promise.allSettled(
-      sportKeys.map(key => oddspapi.getPreMatchOdds(key))
-    );
-    for (const result of preResults) {
-      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-        addToLookup(lookup, result.value);
-      }
-    }
-  } catch (err) {
-    logger.warn('OddsPapi pre-match odds failed', { error: (err as Error).message });
-  }
-
-  // 4. Fallback: The Odds API bulk (if OddsPapi didn't yield enough)
+  // 3. Fallback: The Odds API bulk (if OddsPapi yielded too few)
   if (lookup.size < 10) {
     try {
       const fallback = await theOddsApi.getUpcomingOdds();
