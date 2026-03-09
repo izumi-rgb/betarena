@@ -29,6 +29,7 @@ import {
   normalizeOddsApiIo,
   normalizeOddsMarkets,
 } from './normalizer/normalizer';
+import { generateOdds } from './odds-generator';
 import type { LiveEvent, Market } from './types';
 
 // ---------------------------------------------------------------------------
@@ -558,6 +559,18 @@ export async function refreshAggregateCache(): Promise<{ live: LiveEvent[]; upco
     }
   } catch (err) {
     logger.warn('Odds enrichment failed (non-fatal)', { error: (err as Error).message });
+  }
+
+  // Generate synthetic house odds for events still without markets
+  let synthetic = 0;
+  for (const event of events) {
+    if (event.markets.length === 0 && event.status !== 'ft') {
+      event.markets = generateOdds(event);
+      synthetic++;
+    }
+  }
+  if (synthetic > 0) {
+    logger.info(`Generated synthetic odds for ${synthetic} events`);
   }
 
   // Store finished event results in Redis for bet settlement (24h TTL).
