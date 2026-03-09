@@ -615,10 +615,12 @@ const App = () => {
     : '0.00';
 
   const addToSlip = (matchLabel, market, outcomeLabel, odds, selKey) => {
+    const numOdds = parseFloat(odds);
+    if (!numOdds || isNaN(numOdds) || numOdds <= 0) return; // reject invalid odds
     setSlipSelections(prev => {
       const exists = prev.find(s => s.selKey === selKey);
       if (exists) return prev.filter(s => s.selKey !== selKey);
-      return [...prev, { selKey, matchLabel, market, outcomeLabel, odds: String(odds) }];
+      return [...prev, { selKey, matchLabel, market, outcomeLabel, odds: String(numOdds) }];
     });
   };
 
@@ -651,12 +653,18 @@ const App = () => {
 
     setIsPlacing(true);
     try {
-      const selections = slipSelections.map((sel) => ({
-        event_id: sel.selKey.split('-')[1] || 1,
-        market_type: sel.market || 'match_result',
-        selection_name: sel.outcomeLabel,
-        odds: parseFloat(sel.odds),
-      }));
+      const selections = slipSelections.map((sel) => {
+        // selKey format: "live-{eventId}-{index}" or "upcoming-{eventId}-{index}"
+        // eventId may contain hyphens (e.g. "oio-12345"), so extract between first and last dash
+        const parts = sel.selKey.split('-');
+        const eventId = parts.slice(1, -1).join('-') || parts[1] || '1';
+        return {
+          event_id: eventId,
+          market_type: sel.market || 'match_result',
+          selection_name: sel.outcomeLabel,
+          odds: parseFloat(sel.odds),
+        };
+      });
 
       const betType = slipSelections.length === 1 ? 'single' : 'accumulator';
       const result = await apiPlaceBet({ type: betType, stake: stakeVal, selections });
