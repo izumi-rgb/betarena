@@ -31,8 +31,8 @@ export function validateBetInput(input: BetInput): ValidationResult {
   }
 
   for (const sel of selections) {
-    if (!sel.event_id || !sel.market_type || !sel.selection_name || typeof sel.odds !== 'number') {
-      return { valid: false, error: 'each selection must have event_id, market_type, selection_name, and odds' };
+    if (!sel.event_id || !sel.market_type || !sel.selection_name || typeof sel.odds !== 'number' || isNaN(sel.odds) || sel.odds <= 0) {
+      return { valid: false, error: 'each selection must have event_id, market_type, selection_name, and valid odds (> 0)' };
     }
   }
 
