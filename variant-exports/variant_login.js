@@ -282,7 +282,7 @@ const LoginCard = ({ initialUsername, initialPassword }) => {
     }
 
     try {
-      await login(username, password);
+      await login(username, password, rememberMe);
       setHasError(false);
       setFreshLogin(true);
     } catch (err) {

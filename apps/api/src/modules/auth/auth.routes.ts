@@ -1,5 +1,17 @@
 import { Router, Request, Response } from 'express';
-import { login, logout, refreshAccessToken, getMe, updatePreferences, changePassword, listSessions, revokeSession } from './auth.service';
+import {
+  login,
+  logout,
+  refreshAccessToken,
+  getMe,
+  updatePreferences,
+  changePassword,
+  listSessions,
+  revokeSession,
+  updateProfile,
+  revokeOwnedSession,
+  revokeOtherUserSessions,
+} from './auth.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { loginRateLimiter } from '../../middleware/rateLimiter.middleware';
 import { REFRESH_TOKEN_EXPIRY_SECONDS } from '../../config/constants';
@@ -15,7 +27,7 @@ const COOKIE_OPTIONS = {
 
 router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, remember_me } = req.body;
 
     if (!username || !password) {
       res.status(400).json({
@@ -30,16 +42,20 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';
 
-    const result = await login(username, password, ip, userAgent);
+    const result = await login(username, password, ip, userAgent, !!remember_me);
+
+    // Remember me: 30-day session; otherwise: 2-hour access + 7-day refresh
+    const accessMaxAge = remember_me ? 30 * 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+    const refreshMaxAge = remember_me ? 30 * 24 * 60 * 60 * 1000 : REFRESH_TOKEN_EXPIRY_SECONDS * 1000;
 
     res.cookie('access_token', result.accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 2 * 60 * 60 * 1000,
+      maxAge: accessMaxAge,
     });
 
     res.cookie('refresh_token', result.refreshToken, {
       ...COOKIE_OPTIONS,
-      maxAge: REFRESH_TOKEN_EXPIRY_SECONDS * 1000,
+      maxAge: refreshMaxAge,
     });
 
     res.json({
@@ -202,6 +218,35 @@ router.patch('/preferences', authMiddleware, async (req: Request, res: Response)
   }
 });
 
+router.patch('/profile', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const profile = await updateProfile(req.user!.id, req.body || {});
+    res.json({
+      success: true,
+      data: profile,
+      message: 'Profile updated',
+      error: null,
+    });
+  } catch (err) {
+    if ((err as Error).message === 'INVALID_PROFILE_PAYLOAD') {
+      res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid profile payload',
+        error: 'INVALID_PROFILE_PAYLOAD',
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to update profile',
+      error: 'INTERNAL_ERROR',
+    });
+  }
+});
+
 router.post('/change-password', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword, confirmPassword } = req.body;
@@ -242,6 +287,64 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
   }
 });
 
+router.get('/my-sessions', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const currentRefreshToken = req.cookies?.refresh_token;
+    const sessions = await listSessions(currentRefreshToken, req.user!.id);
+    res.json({ success: true, data: sessions, message: 'Sessions retrieved', error: null });
+  } catch {
+    res.status(500).json({ success: false, data: null, message: 'Failed to list sessions', error: 'INTERNAL_ERROR' });
+  }
+});
+
+router.delete('/my-sessions/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const deleted = await revokeOwnedSession(req.user!.id, sessionId);
+    if (!deleted) {
+      res.status(404).json({ success: false, data: null, message: 'Session not found', error: 'NOT_FOUND' });
+      return;
+    }
+    res.json({ success: true, data: null, message: 'Session revoked', error: null });
+  } catch (err) {
+    if ((err as Error).message === 'NOT_AUTHORIZED') {
+      res.status(403).json({ success: false, data: null, message: 'Forbidden', error: 'FORBIDDEN' });
+      return;
+    }
+    res.status(500).json({ success: false, data: null, message: 'Failed to revoke session', error: 'INTERNAL_ERROR' });
+  }
+});
+
+router.post('/my-sessions/revoke-others', authMiddleware, async (req: Request, res: Response) => {
+  const currentRefreshToken = req.cookies?.refresh_token;
+  if (!currentRefreshToken) {
+    res.status(400).json({
+      success: false,
+      data: null,
+      message: 'Current refresh session required',
+      error: 'NO_REFRESH_TOKEN',
+    });
+    return;
+  }
+
+  try {
+    const revokedCount = await revokeOtherUserSessions(req.user!.id, currentRefreshToken);
+    res.json({
+      success: true,
+      data: { revokedCount },
+      message: 'Other sessions revoked',
+      error: null,
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to revoke other sessions',
+      error: 'INTERNAL_ERROR',
+    });
+  }
+});
+
 // Admin-only: list all active sessions
 router.get('/sessions', authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -249,7 +352,7 @@ router.get('/sessions', authMiddleware, async (req: Request, res: Response) => {
       res.status(403).json({ success: false, data: null, message: 'Admin only', error: 'FORBIDDEN' });
       return;
     }
-    const sessions = await listSessions();
+    const sessions = await listSessions(req.cookies?.refresh_token);
     res.json({ success: true, data: sessions, message: 'Sessions retrieved', error: null });
   } catch {
     res.status(500).json({ success: false, data: null, message: 'Failed to list sessions', error: 'INTERNAL_ERROR' });

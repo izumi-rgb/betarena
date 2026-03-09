@@ -43,7 +43,7 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
   fetchMe: (options?: { silent?: boolean }) => Promise<boolean>;
@@ -66,12 +66,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set({ accessToken: token });
   },
 
-  login: async (username, password) => {
+  login: async (username, password, rememberMe) => {
     set({ isLoading: true });
     try {
       const res = await apiPost<{ user: User; accessToken: string }>(
         "/api/auth/login",
-        { username, password },
+        { username, password, remember_me: !!rememberMe },
       );
       const { user, accessToken } = res.data;
       get().setToken(accessToken);
