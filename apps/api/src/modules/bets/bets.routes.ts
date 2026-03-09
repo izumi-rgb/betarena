@@ -14,7 +14,6 @@ router.post('/', requireRole('member'), async (req: Request, res: Response) => {
 
     const validation = validateBetInput({ type, stake, selections, system_type, each_way, ew_fraction, ew_places, handicap_line, total_line });
     if (!validation.valid) {
-      console.log('[BET VALIDATION FAIL]', JSON.stringify({ type, stake, selections: selections?.map((s: any) => ({ event_id: s.event_id, market_type: s.market_type, selection_name: s.selection_name, odds: s.odds, oddsType: typeof s.odds })) }));
       res.status(400).json({ success: false, data: null, message: validation.error!, error: 'VALIDATION_ERROR' });
       return;
     }

@@ -31,10 +31,12 @@ async function snapshotOdds(selections: BetSelection[]) {
   let totalOdds = 1;
 
   for (const sel of selections) {
-    // Try DB lookup first (for seeded/persisted events)
-    const oddsRow = await db('odds')
-      .where({ event_id: sel.event_id, market_type: sel.market_type })
-      .first();
+    // Try DB lookup first (for seeded/persisted events with numeric IDs)
+    const eventIdStr = String(sel.event_id);
+    const isNumericId = /^\d+$/.test(eventIdStr);
+    const oddsRow = isNumericId
+      ? await db('odds').where({ event_id: sel.event_id, market_type: sel.market_type }).first()
+      : null;
 
     if (oddsRow) {
       // DB odds found — use server-side odds (prevents manipulation)
