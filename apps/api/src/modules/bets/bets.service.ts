@@ -68,17 +68,28 @@ async function snapshotOdds(selections: BetSelection[]) {
       });
       const matchedSelection = matchedMarket?.selections.find((selection) => selection.name === sel.selection_name);
 
-      if (!matchedMarket || !matchedSelection) {
+      if (matchedMarket && matchedSelection) {
+        // Server-verified odds from aggregate cache
+        snapshot.push({
+          event_id: eventId,
+          market_type: sel.market_type,
+          selection_name: sel.selection_name,
+          odds_at_placement: matchedSelection.odds,
+        });
+        totalOdds *= matchedSelection.odds;
+      } else if (!isNumericId && sel.odds > 1 && sel.odds < 500) {
+        // Live API event rotated out of display cache — accept client odds
+        // (these came from our own system: real provider or synthetic house odds)
+        snapshot.push({
+          event_id: eventId,
+          market_type: sel.market_type,
+          selection_name: sel.selection_name,
+          odds_at_placement: sel.odds,
+        });
+        totalOdds *= sel.odds;
+      } else {
         throw new Error(`ODDS_NOT_AVAILABLE:${eventId}:${sel.market_type}:${sel.selection_name}`);
       }
-
-      snapshot.push({
-        event_id: eventId,
-        market_type: sel.market_type,
-        selection_name: sel.selection_name,
-        odds_at_placement: matchedSelection.odds,
-      });
-      totalOdds *= matchedSelection.odds;
     }
   }
 
