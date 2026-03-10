@@ -5,8 +5,8 @@ export async function up(knex: Knex): Promise<void> {
   const userExists = await knex('users').where({ id: 0 }).first();
   if (!userExists) {
     await knex.raw(
-      `INSERT INTO users (id, username, password_hash, role, display_id, status)
-       VALUES (0, '__house__', '__no_login__', 'admin', 'HOUSE', 'active')
+      `INSERT INTO users (id, username, password_hash, role, display_id, is_active)
+       VALUES (0, '__house__', '__no_login__', 'admin', 'HOUSE', true)
        ON CONFLICT (id) DO NOTHING`
     );
   }
