@@ -15,3 +15,4 @@ https:/
 *.key
 .playwright/
 .playwright-cli/
+docker-compose.override.yml
