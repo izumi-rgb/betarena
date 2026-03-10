@@ -1,7 +1,17 @@
 import { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
-  // Insert house float account (user_id = 0) if it doesn't exist
+  // Insert system/house user (id = 0) if it doesn't exist
+  const userExists = await knex('users').where({ id: 0 }).first();
+  if (!userExists) {
+    await knex.raw(
+      `INSERT INTO users (id, username, password_hash, role, display_id, status)
+       VALUES (0, '__house__', '__no_login__', 'admin', 'HOUSE', 'active')
+       ON CONFLICT (id) DO NOTHING`
+    );
+  }
+
+  // Insert house float credit account (user_id = 0) if it doesn't exist
   const exists = await knex('credit_accounts').where({ user_id: 0 }).first();
   if (!exists) {
     await knex('credit_accounts').insert({
