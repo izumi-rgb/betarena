@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
-const SOCKET_TOKEN_STORAGE_KEY = "betarena.socketAccessToken";
+export const SOCKET_TOKEN_STORAGE_KEY = "betarena.socketAccessToken";
 
 function resolveSocketUrl(): string {
   const configured = process.env.NEXT_PUBLIC_WS_URL;
@@ -63,7 +63,10 @@ export function getSocket(): Socket {
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
+    });
+    socket.on('connect_error', (err) => {
+      console.warn('[Socket] Connection error:', err.message);
     });
   }
   return socket;
@@ -86,8 +89,9 @@ export function connectSocket(token?: string): Socket {
 
 export function disconnectSocket(): void {
   if (socket) {
+    socket.removeAllListeners();
     socket.disconnect();
-    socket = null;
+    // Do NOT null socket — prevents stale references in components
   }
 }
 

@@ -24,19 +24,32 @@ interface PlaceBetParams {
   ewPlaces?: number;
   handicapLine?: number;
   totalLine?: number;
+  idempotencyKey?: string;
 }
 
 async function snapshotOdds(selections: BetSelection[]) {
   const snapshot: Record<string, unknown>[] = [];
   let totalOdds = 1;
 
+  // Batch DB odds lookup for numeric event IDs
+  const numericSelections = selections.filter((s) => /^\d+$/.test(String(s.event_id)));
+  const numericEventIds = [...new Set(numericSelections.map((s) => s.event_id))];
+  const dbOddsMap = new Map<string, any>();
+
+  if (numericEventIds.length > 0) {
+    const oddsRows = await db('odds').whereIn('event_id', numericEventIds);
+    for (const row of oddsRows) {
+      dbOddsMap.set(`${row.event_id}:${row.market_type}`, row);
+    }
+  }
+
+  // Fetch live events aggregate once (cached in-memory by sports-data.service)
+  let aggregateCache: Awaited<ReturnType<typeof getLiveEvents>> | null = null;
+
   for (const sel of selections) {
-    // Try DB lookup first (for seeded/persisted events with numeric IDs)
     const eventIdStr = String(sel.event_id);
     const isNumericId = /^\d+$/.test(eventIdStr);
-    const oddsRow = isNumericId
-      ? await db('odds').where({ event_id: sel.event_id, market_type: sel.market_type }).first()
-      : null;
+    const oddsRow = isNumericId ? dbOddsMap.get(`${sel.event_id}:${sel.market_type}`) : null;
 
     if (oddsRow) {
       // DB odds found — use server-side odds (prevents manipulation)
@@ -56,8 +69,8 @@ async function snapshotOdds(selections: BetSelection[]) {
       totalOdds *= matchedSel.odds;
     } else {
       const eventId = String(sel.event_id);
-      const aggregate = await getLiveEvents();
-      const aggregateEvent = [...aggregate.live, ...aggregate.upcoming]
+      if (!aggregateCache) aggregateCache = await getLiveEvents();
+      const aggregateEvent = [...aggregateCache.live, ...aggregateCache.upcoming]
         .find((event) => String(event.id) === eventId);
       const candidateMarkets = aggregateEvent?.markets?.length
         ? aggregateEvent.markets
@@ -77,7 +90,7 @@ async function snapshotOdds(selections: BetSelection[]) {
           odds_at_placement: matchedSelection.odds,
         });
         totalOdds *= matchedSelection.odds;
-      } else if (!isNumericId && sel.odds > 1 && sel.odds < 500) {
+      } else if (!isNumericId && sel.odds > 1 && sel.odds <= 50) {
         // Live API event rotated out of display cache — accept client odds
         // (these came from our own system: real provider or synthetic house odds)
         snapshot.push({
@@ -143,8 +156,27 @@ export async function placeBet(params: PlaceBetParams) {
   const { userId, type, stake, selections, ip, userAgent, systemType, ewFraction, ewPlaces, handicapLine, totalLine } = params;
 
   if (stake <= 0) throw new Error('INVALID_STAKE');
+  const MAX_STAKE = Number(process.env.MAX_STAKE) || 10_000;
+  if (stake > MAX_STAKE) throw new Error('STAKE_EXCEEDS_LIMIT');
   if (!selections || selections.length === 0) throw new Error('NO_SELECTIONS');
 
+  // Idempotency check
+  if (params.idempotencyKey) {
+    const existing = await db('bets').where({ idempotency_key: params.idempotencyKey }).first();
+    if (existing) {
+      return {
+        bet_uid: existing.bet_uid,
+        type: existing.type,
+        stake: Number(existing.stake),
+        potential_win: Number(existing.potential_win),
+        selections: typeof existing.odds_snapshot === 'string' ? JSON.parse(existing.odds_snapshot) : existing.odds_snapshot,
+        status: existing.status,
+      };
+    }
+  }
+
+  // TODO: For maximum safety, odds should be re-verified inside the transaction.
+  // Currently verified server-side via snapshotOdds() before the transaction.
   const { snapshot, totalOdds } = await snapshotOdds(selections);
 
   let potentialWin: number;
@@ -217,6 +249,12 @@ export async function placeBet(params: PlaceBetParams) {
       throw new Error(`UNSUPPORTED_TYPE:${type}`);
   }
 
+  // Maximum payout cap
+  const MAX_PAYOUT = Number(process.env.MAX_PAYOUT) || 100_000;
+  if (potentialWin > MAX_PAYOUT) {
+    throw new Error('PAYOUT_EXCEEDS_LIMIT');
+  }
+
   const result = await db.transaction(async (trx) => {
     const account = await trx('credit_accounts')
       .where({ user_id: userId })
@@ -243,6 +281,7 @@ export async function placeBet(params: PlaceBetParams) {
       odds_snapshot: JSON.stringify(snapshot),
       selections: JSON.stringify(selections),
       metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+      idempotency_key: params.idempotencyKey || null,
     }).returning('*');
 
     await trx('credit_transactions').insert({
@@ -345,7 +384,7 @@ export async function getUserBets(userId: number, status?: string, page: number 
   };
 }
 
-function calculateCashoutOffer(bet: any): number {
+export function calculateCashoutOffer(bet: any): number {
   const potential = Number(bet.potential_win || 0);
   const stake = Number(bet.stake || 0);
   const selections = typeof bet.selections === 'string' ? JSON.parse(bet.selections) : (bet.selections || []);
@@ -392,7 +431,7 @@ export async function cashoutBet(userId: number, betUid: string, ip: string, use
       .increment('balance', cashoutAmount);
 
     await trx('credit_transactions').insert({
-      from_user_id: null,
+      from_user_id: 0,
       to_user_id: userId,
       amount: cashoutAmount,
       type: 'create',
@@ -488,7 +527,7 @@ export async function partialCashoutBet(
       .increment('balance', payout);
 
     await trx('credit_transactions').insert({
-      from_user_id: null,
+      from_user_id: 0,
       to_user_id: userId,
       amount: payout,
       type: 'create',

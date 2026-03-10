@@ -3,10 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api';
-import { connectSocket, getSocket, joinEventRoom, leaveEventRoom } from '@/lib/socket';
 import { useBetSlipStore } from '@/stores/betSlipStore';
 import { useAuthStore } from '@/stores/authStore';
 import { SportSidebar, TopHeader } from '@/components/app/SportSidebar';
+import { LiveBadge, OddsButton, MarketAccordion } from '@/components/sports/EventDetailComponents';
+import { useEventSocket } from '@/hooks/useEventSocket';
 
 type MarketSelection = {
   id: string;
@@ -50,61 +51,6 @@ type BetPick = {
   selection: string;
   odds: number;
 };
-
-function LiveBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#EF4444]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#EF4444]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444]" /> Live
-    </span>
-  );
-}
-
-function OddsButton({
-  label,
-  odds,
-  active,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  odds: number;
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      className={`rounded-lg border px-2 py-2 text-center transition-all ${
-        disabled
-          ? 'cursor-not-allowed border-[#1E293B] bg-[#0B0E1A]/40 text-[#64748B]'
-          : active
-            ? 'border-[#00C37B] bg-[#00C37B]/15 text-[#00C37B]'
-            : 'border-[#1E293B] bg-[#0B0E1A] text-white hover:border-[#00C37B]/60'
-      }`}
-    >
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">{label}</div>
-      <div className="mt-0.5 font-mono text-[15px] font-bold text-[#F59E0B]">{odds.toFixed(2)}</div>
-    </button>
-  );
-}
-
-function MarketAccordion({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="overflow-hidden rounded-xl border border-[#1E293B] bg-[#1A2235]">
-      <button
-        onClick={() => setOpen((s) => !s)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
-      >
-        <span className="text-sm font-semibold text-white">{title}</span>
-        <span className="text-[#94A3B8]">{open ? '−' : '+'}</span>
-      </button>
-      {open ? <div className="border-t border-[#1E293B] p-3">{children}</div> : null}
-    </div>
-  );
-}
 
 function TeamLogo({ name, hue }: { name: string; hue: number }) {
   const abbr = name
@@ -333,18 +279,11 @@ export default function EsportsMatchPage() {
     setPicks(sharedPicks as BetPick[]);
   }, [sharedPicks]);
 
-  useEffect(() => {
-    if (!eventId) return;
-
-    connectSocket();
-    joinEventRoom(eventId);
-    const socket = getSocket();
-
-    const onEventUpdate = (data: Partial<EsportsEvent>) => {
+  useEventSocket(eventId, {
+    onEventUpdate: (data: Partial<EsportsEvent>) => {
       setEvent((prev) => (prev ? ({ ...prev, ...data }) : prev));
-    };
-
-    const onOddsUpdate = (data: { marketId?: string; markets?: Array<{ marketId?: string; selections: MarketSelection[] }> }) => {
+    },
+    onOddsUpdate: (data: { marketId?: string; markets?: Array<{ marketId?: string; selections: MarketSelection[] }> }) => {
       setEvent((prev) => {
         if (!prev) return prev;
         if (Array.isArray(data.markets)) {
@@ -358,17 +297,8 @@ export default function EsportsMatchPage() {
         }
         return prev;
       });
-    };
-
-    socket.on('event:update', onEventUpdate);
-    socket.on('odds:update', onOddsUpdate);
-
-    return () => {
-      leaveEventRoom(eventId);
-      socket.off('event:update', onEventUpdate);
-      socket.off('odds:update', onOddsUpdate);
-    };
-  }, [eventId]);
+    },
+  });
 
   const handlePick = (pick: BetPick) => {
     setPicks((prev) => (prev.some((p) => p.id === pick.id) ? prev.filter((p) => p.id !== pick.id) : [...prev, pick]));

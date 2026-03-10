@@ -3,11 +3,15 @@ dist/
 !packages/shared/dist/
 .next/
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.log
 .DS_Store
 coverage/
 .turbo/
 .expo/
 https:/
+*.pem
+*.key
+.playwright/
+.playwright-cli/

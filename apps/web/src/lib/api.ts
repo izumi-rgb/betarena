@@ -107,11 +107,18 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      await axios.post<ApiResponse<{ accessToken: string }>>(
+      const refreshRes = await axios.post<ApiResponse<{ accessToken: string }>>(
         `${API_BASE}/api/auth/refresh`,
         {},
         { withCredentials: true },
       );
+
+      // Sync new token to Zustand store (for socket reconnection)
+      const newToken = refreshRes.data?.data?.accessToken;
+      if (newToken) {
+        const { useAuthStore } = await import('@/stores/authStore');
+        useAuthStore.getState().setToken(newToken);
+      }
 
       processQueue(null);
       // Retry with fresh cookie (set by the refresh response)

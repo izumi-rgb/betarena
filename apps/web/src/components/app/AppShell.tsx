@@ -1,89 +1,24 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useMemo } from 'react';
 import { SportSidebar, TopHeader } from '@/components/app/SportSidebar';
 import { useBetSlipStore } from '@/stores/betSlipStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useBalance } from '@/hooks/useBalance';
-import { apiPost } from '@/lib/api';
-import { toast } from '@/hooks/use-toast';
-
-function getErrorMessage(error: unknown): string {
-  if (
-    typeof error === 'object'
-    && error !== null
-    && 'response' in error
-    && typeof (error as { response?: unknown }).response === 'object'
-    && (error as { response?: unknown }).response !== null
-    && 'data' in ((error as { response: { data?: unknown } }).response)
-    && typeof (error as { response: { data?: { message?: unknown } } }).response.data?.message === 'string'
-  ) {
-    return (error as { response: { data: { message: string } } }).response.data.message;
-  }
-  return 'Failed to place bet';
-}
+import { usePlaceBet } from '@/hooks/usePlaceBet';
+import { formatCurrency } from '@/lib/format';
 
 function DesktopBetSlip() {
-  const router = useRouter();
   const picks = useBetSlipStore((s) => s.picks);
   const removePick = useBetSlipStore((s) => s.removePick);
   const clearPicks = useBetSlipStore((s) => s.clearPicks);
   const stake = useBetSlipStore((s) => s.stake);
   const setStake = useBetSlipStore((s) => s.setStake);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { balance, refetch: refetchBalance } = useBalance();
-  const [isPlacing, setIsPlacing] = useState(false);
+  const { placeBet, isPlacing, balance } = usePlaceBet();
 
   const totalOdds = useMemo(() => picks.reduce((acc, p) => acc * p.odds, 1), [picks]);
   const potential = (Number(stake) || 0) * (picks.length ? totalOdds : 0);
   const enoughBalance = (balance ?? 0) >= (Number(stake) || 0);
-
-  const formatCurrency = (value: number) =>
-    `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CR`;
-
-  const placeBet = async () => {
-    if (!isAuthenticated) {
-      router.push('/login?next=/sports');
-      return;
-    }
-    if (picks.length === 0 || isPlacing) return;
-
-    const stakeNum = Number(stake);
-    if (!stakeNum || stakeNum <= 0) {
-      toast({ title: 'Invalid stake', description: 'Please enter a valid stake amount.', variant: 'destructive' });
-      return;
-    }
-
-    setIsPlacing(true);
-    try {
-      const betType = picks.length === 1 ? 'single' : 'accumulator';
-      const selections = picks.map((p) => ({
-        event_id: p.eventId,
-        market_type: p.marketType,
-        selection_name: p.selection,
-        odds: p.odds,
-      }));
-
-      await apiPost('/api/bets', { type: betType, stake: stakeNum, selections });
-      await refetchBalance();
-      toast({ title: 'Bet Placed!', description: `Your ${betType} bet of ${stakeNum.toFixed(2)} has been placed.` });
-      clearPicks();
-      router.push('/my-bets');
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      const friendly: Record<string, string> = {
-        INSUFFICIENT_BALANCE: 'Insufficient balance. Please add credits.',
-        INVALID_STAKE: 'Invalid stake amount.',
-        NO_SELECTIONS: 'No selections in your bet slip.',
-        SINGLE_BET_ONE_SELECTION: 'Single bet requires exactly one selection.',
-        ACCUMULATOR_MIN_TWO: 'Accumulator requires at least two selections.',
-      };
-      toast({ title: 'Bet Failed', description: friendly[msg] || msg, variant: 'destructive' });
-    } finally {
-      setIsPlacing(false);
-    }
-  };
 
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-[#1E293B] bg-[#111827] md:flex">

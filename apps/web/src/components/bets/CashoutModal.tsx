@@ -9,9 +9,7 @@ function parseOffer(bet: UserBet): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatCurrency(value: number): string {
-  return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CR`;
-}
+import { formatCurrency } from '@/lib/format';
 
 export function CashoutModal({
   bet,

@@ -32,10 +32,10 @@ export function useBalance(options?: { enabled?: boolean }) {
     staleTime: 10_000,
   });
 
+  const queryRefetch = query.refetch;
   const refetch = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: BALANCE_QUERY_KEY });
-    return query.refetch();
-  }, [query, queryClient]);
+    return queryRefetch();
+  }, [queryRefetch]);
 
   useEffect(() => {
     if (!isAuthenticated) {

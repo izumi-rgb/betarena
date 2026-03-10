@@ -22,14 +22,15 @@ export type UserBet = {
   cashout_available?: boolean;
 };
 
+import { formatCurrency } from '@/lib/format';
+
 function parseNumber(value: number | string | undefined): number {
   const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? 0));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatCurrency(value: number | string | undefined): string {
-  const num = parseNumber(value);
-  return `${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CR`;
+function formatCurrencyValue(value: number | string | undefined): string {
+  return formatCurrency(parseNumber(value));
 }
 
 function normalizeSelections(rawSelections: UserBet['selections']): BetSelectionItem[] {
@@ -81,11 +82,11 @@ export function BetCard({
       <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-[#1E293B] bg-[#111827] p-3 text-xs">
         <div className="text-[#94A3B8]">
           Stake
-          <div className="mt-1 font-mono text-sm text-white">{formatCurrency(bet.stake)}</div>
+          <div className="mt-1 font-mono text-sm text-white">{formatCurrencyValue(bet.stake)}</div>
         </div>
         <div className="text-[#94A3B8]">
           Potential Payout
-          <div className="mt-1 font-mono text-sm text-[#00C37B]">{formatCurrency(bet.potential_win)}</div>
+          <div className="mt-1 font-mono text-sm text-[#00C37B]">{formatCurrencyValue(bet.potential_win)}</div>
         </div>
         <div className="text-[#94A3B8]">
           Placed
@@ -93,7 +94,7 @@ export function BetCard({
         </div>
         <div className="text-[#94A3B8]">
           Current Return
-          <div className="mt-1 font-mono text-sm text-white">{formatCurrency(bet.actual_win)}</div>
+          <div className="mt-1 font-mono text-sm text-white">{formatCurrencyValue(bet.actual_win)}</div>
         </div>
       </div>
 
@@ -101,7 +102,7 @@ export function BetCard({
         <div className="mt-3 flex items-center justify-between gap-2">
           <div className="text-xs text-[#94A3B8]">
             Cashout Offer
-            <div className="mt-1 font-mono text-sm text-[#00C37B]">{formatCurrency(bet.cashout_offer)}</div>
+            <div className="mt-1 font-mono text-sm text-[#00C37B]">{formatCurrencyValue(bet.cashout_offer)}</div>
           </div>
           <button
             onClick={() => onCashout(bet)}

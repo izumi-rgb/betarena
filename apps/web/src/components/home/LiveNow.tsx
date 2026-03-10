@@ -2,16 +2,21 @@
 
 import Link from 'next/link';
 import type { HomeEvent } from '@/components/home/FeaturedEvents';
+import { resolveEventHref } from '@/lib/sportRoutes';
 
-function eventHref(event: HomeEvent): string {
-  const sport = String(event.sport || '').toLowerCase().trim();
-  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing'].includes(sport)) {
-    return `/sports/${sport}/${event.id}`;
-  }
-  return '/in-play';
+function SkeletonRow() {
+  return (
+    <div className="flex animate-pulse items-center justify-between rounded-lg border border-[#1E293B] bg-[#1A2235] px-3 py-3">
+      <div>
+        <div className="h-3 w-28 rounded bg-[#1E293B]" />
+        <div className="mt-2 h-4 w-44 rounded bg-[#1E293B]" />
+      </div>
+      <div className="h-6 w-12 rounded bg-[#1E293B]" />
+    </div>
+  );
 }
 
-export function LiveNow({ events }: { events: HomeEvent[] }) {
+export function LiveNow({ events, loading }: { events: HomeEvent[]; loading?: boolean }) {
   const liveEvents = events.slice(0, 8);
 
   return (
@@ -23,14 +28,20 @@ export function LiveNow({ events }: { events: HomeEvent[] }) {
         </Link>
       </div>
       <div className="space-y-2">
-        {liveEvents.length === 0 ? (
+        {loading ? (
+          <>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </>
+        ) : liveEvents.length === 0 ? (
           <div className="rounded-lg border border-dashed border-[#1E293B] px-3 py-4 text-sm text-[#94A3B8]">
             No live events at the moment.
           </div>
         ) : liveEvents.map((event) => (
           <Link
             key={event.id}
-            href={eventHref(event)}
+            href={resolveEventHref(event)}
             className="flex items-center justify-between rounded-lg border border-[#1E293B] bg-[#1A2235] px-3 py-3 hover:border-[#00C37B]/60"
           >
             <div>

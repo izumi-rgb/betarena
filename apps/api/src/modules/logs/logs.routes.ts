@@ -10,7 +10,7 @@ router.use(authMiddleware, requireRole('admin'));
 router.get('/', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 100;
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 50));
     const action = req.query.action as string | undefined;
     const threat = req.query.threat as string | undefined;
     const userId = req.query.user_id as string | undefined;

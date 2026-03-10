@@ -1,37 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useMemo } from 'react';
 import { useBetSlipStore } from '@/stores/betSlipStore';
-import { useAuthStore } from '@/stores/authStore';
-import { apiPost } from '@/lib/api';
-import { toast } from '@/hooks/use-toast';
-import { useBalance } from '@/hooks/useBalance';
+import { usePlaceBet } from '@/hooks/usePlaceBet';
+import { formatCurrency } from '@/lib/format';
 
 function cx(...vals: Array<string | false | null | undefined>) {
   return vals.filter(Boolean).join(' ');
 }
 
-function getErrorMessage(error: unknown): string {
-  if (
-    typeof error === 'object'
-    && error !== null
-    && 'response' in error
-    && typeof (error as { response?: unknown }).response === 'object'
-    && (error as { response?: unknown }).response !== null
-    && 'data' in ((error as { response: { data?: unknown } }).response)
-    && typeof (error as { response: { data?: { message?: unknown } } }).response.data?.message === 'string'
-  ) {
-    return (error as { response: { data: { message: string } } }).response.data.message;
-  }
-  return 'Failed to place bet';
-}
-
 export function MemberGlobalChrome() {
   const pathname = usePathname();
-  const router = useRouter();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const picks = useBetSlipStore((s) => s.picks);
   const removePick = useBetSlipStore((s) => s.removePick);
   const isOpenMobile = useBetSlipStore((s) => s.isOpenMobile);
@@ -39,9 +20,7 @@ export function MemberGlobalChrome() {
   const closeMobile = useBetSlipStore((s) => s.closeMobile);
   const stake = useBetSlipStore((s) => s.stake);
   const setStake = useBetSlipStore((s) => s.setStake);
-  const [isPlacing, setIsPlacing] = useState(false);
-  const clearPicks = useBetSlipStore((s) => s.clearPicks);
-  const { balance, refetch: refetchBalance } = useBalance();
+  const { placeBet, isPlacing, balance } = usePlaceBet();
 
   const isMemberRoute = pathname?.startsWith('/sports') || pathname?.startsWith('/results') || pathname?.startsWith('/my-bets') || pathname?.startsWith('/account') || pathname === '/in-play';
 
@@ -49,67 +28,16 @@ export function MemberGlobalChrome() {
   const potential = (Number(stake) || 0) * (picks.length ? totalOdds : 0);
   const enoughBalance = (balance ?? 0) >= (Number(stake) || 0);
 
-  const formatCurrency = (value: number) => {
-    const num = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-    return `${num} CR`;
-  };
-
-  const triggerLoginForProtectedAction = () => {
-    if (isAuthenticated) return false;
-    const next = encodeURIComponent(pathname || '/sports');
-    router.push(`/login?next=${next}`);
-    return true;
-  };
-
-  const placeBet = async () => {
-    if (triggerLoginForProtectedAction()) return;
-    if (picks.length === 0 || isPlacing) return;
-
-    const stakeNum = Number(stake);
-    if (!stakeNum || stakeNum <= 0) {
-      toast({ title: 'Invalid stake', description: 'Please enter a valid stake amount.', variant: 'destructive' });
-      return;
-    }
-
-    setIsPlacing(true);
-    try {
-      const betType = picks.length === 1 ? 'single' : 'accumulator';
-      const selections = picks.map((p) => ({
-        event_id: p.eventId,
-        market_type: p.marketType,
-        selection_name: p.selection,
-        odds: p.odds,
-      }));
-
-      await apiPost('/api/bets', { type: betType, stake: stakeNum, selections });
-      await refetchBalance();
-      toast({ title: 'Bet Placed!', description: `Your ${betType} bet of ${stakeNum.toFixed(2)} has been placed.` });
-      clearPicks();
-      closeMobile();
-      router.push('/my-bets');
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      const friendly: Record<string, string> = {
-        INSUFFICIENT_BALANCE: 'Insufficient balance. Please add credits.',
-        INVALID_STAKE: 'Invalid stake amount.',
-        NO_SELECTIONS: 'No selections in your bet slip.',
-        SINGLE_BET_ONE_SELECTION: 'Single bet requires exactly one selection.',
-        ACCUMULATOR_MIN_TWO: 'Accumulator requires at least two selections.',
-      };
-      toast({ title: 'Bet Failed', description: friendly[msg] || msg, variant: 'destructive' });
-    } finally {
-      setIsPlacing(false);
-    }
-  };
-
   if (!isMemberRoute) return null;
 
   return (
     <>
       {/* Desktop betslip is handled by variant screens; only mobile trigger + sheet here */}
-      <div className="fixed bottom-16 right-4 z-50 md:hidden">
-        <button onClick={openMobile} className="min-h-11 rounded-full bg-[#00C37B] px-4 py-2 text-sm font-bold text-[#0B0E1A]">Bet Slip ({picks.length})</button>
-      </div>
+      {picks.length > 0 && (
+        <div className="fixed bottom-16 right-4 z-50 md:hidden">
+          <button onClick={openMobile} className="min-h-11 rounded-full bg-[#00C37B] px-4 py-2 text-sm font-bold text-[#0B0E1A]">Bet Slip ({picks.length})</button>
+        </div>
+      )}
 
       {isOpenMobile ? (
         <div className="fixed inset-0 z-50 bg-black/50 md:hidden" onClick={closeMobile}>
@@ -165,9 +93,11 @@ export function MemberGlobalChrome() {
         </div>
       </nav>
 
-      <div className="pointer-events-none fixed right-4 top-4 z-50 rounded-full bg-[#00C37B] px-3 py-1 text-xs font-bold text-[#0B0E1A] shadow md:hidden">
-        {picks.length} picks
-      </div>
+      {picks.length > 0 && (
+        <div className="pointer-events-none fixed right-4 top-4 z-50 rounded-full bg-[#00C37B] px-3 py-1 text-xs font-bold text-[#0B0E1A] shadow md:hidden">
+          {picks.length} picks
+        </div>
+      )}
     </>
   );
 }

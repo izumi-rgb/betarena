@@ -5,7 +5,6 @@ import { apiPost } from '@/lib/api';
 import { copyToClipboard } from '@/lib/copyToClipboard';
 
 interface ResetPasswordModalProps {
-  targetId: number;
   targetName: string;
   apiEndpoint: string;
   onClose: () => void;

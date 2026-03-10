@@ -10,9 +10,9 @@ router.use(authMiddleware);
 
 router.post('/', requireRole('member'), async (req: Request, res: Response) => {
   try {
-    const { type, stake, selections, system_type, each_way, ew_fraction, ew_places, handicap_line, total_line } = req.body;
+    const { type, stake, selections, system_type, each_way, ew_fraction, ew_places, handicap_line, total_line, idempotency_key } = req.body;
 
-    const validation = validateBetInput({ type, stake, selections, system_type, each_way, ew_fraction, ew_places, handicap_line, total_line });
+    const validation = validateBetInput({ type, stake, selections, system_type, each_way, ew_fraction, ew_places, handicap_line, total_line, idempotency_key });
     if (!validation.valid) {
       res.status(400).json({ success: false, data: null, message: validation.error!, error: 'VALIDATION_ERROR' });
       return;
@@ -33,6 +33,7 @@ router.post('/', requireRole('member'), async (req: Request, res: Response) => {
       ewPlaces: ew_places,
       handicapLine: handicap_line,
       totalLine: total_line,
+      idempotencyKey: idempotency_key,
     });
 
     res.status(201).json({ success: true, data: result, message: 'Bet placed successfully', error: null });
@@ -47,7 +48,7 @@ router.get('/my-bets', async (req: Request, res: Response) => {
   try {
     const status = req.query.status as string | undefined;
     const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 50;
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 50), 200);
     const result = await getUserBets(req.user!.id, status, page, limit);
     res.json({ success: true, data: result, message: 'Bets retrieved', error: null });
   } catch (err) {

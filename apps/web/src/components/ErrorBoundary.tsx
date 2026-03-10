@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -17,6 +18,11 @@ export class ErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, errorInfo);
+    // Future: send to Sentry/error reporting service
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -29,14 +35,20 @@ export class ErrorBoundary extends React.Component<
           )}
           <div className="flex gap-3">
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => this.setState({ hasError: false })}
               className="rounded bg-[#00C37B] px-4 py-2 font-bold text-[#0B0E1A]"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded border border-[#1E293B] px-4 py-2 text-[#94A3B8]"
             >
               Reload Page
             </button>
-            <a href="/" className="rounded border border-[#1E293B] px-4 py-2 text-[#94A3B8]">
+            <Link href="/" className="rounded border border-[#1E293B] px-4 py-2 text-[#94A3B8]">
               Go Home
-            </a>
+            </Link>
           </div>
         </div>
       );

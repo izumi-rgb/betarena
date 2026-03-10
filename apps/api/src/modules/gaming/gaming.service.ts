@@ -66,12 +66,11 @@ const PROMOTIONS: PromoCard[] = [
   },
 ];
 
-const RACECARDS: RaceEvent[] = [
+const RACECARD_TEMPLATES: Omit<RaceEvent, 'startTime'>[] = [
   {
     id: 'r1',
     meeting: 'Cheltenham',
     raceName: '2m Handicap Hurdle',
-    startTime: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
     markets: [
       { id: 'm1', name: 'Fleet Commander', odds: 4.1 },
       { id: 'm2', name: 'Blue Harbor', odds: 5.8 },
@@ -82,7 +81,6 @@ const RACECARDS: RaceEvent[] = [
     id: 'r2',
     meeting: 'Meydan',
     raceName: '5f Sprint Stakes',
-    startTime: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
     markets: [
       { id: 'm1', name: 'Night Falcon', odds: 3.9 },
       { id: 'm2', name: 'Bravo One', odds: 6.2 },
@@ -93,7 +91,6 @@ const RACECARDS: RaceEvent[] = [
     id: 'r3',
     meeting: 'Romford',
     raceName: 'Greyhound 575m',
-    startTime: new Date(Date.now() + 12 * 60 * 1000).toISOString(),
     markets: [
       { id: 'm1', name: 'Trap 1', odds: 2.9 },
       { id: 'm2', name: 'Trap 3', odds: 4.3 },
@@ -101,6 +98,8 @@ const RACECARDS: RaceEvent[] = [
     ],
   },
 ];
+
+const RACECARD_OFFSETS_MIN = [25, 55, 12];
 
 export function getGamingLobby() {
   const byCategory = LOBBY_GAMES.reduce<Record<string, LobbyGame[]>>((acc, game) => {
@@ -129,43 +128,51 @@ export function getPromotions() {
   return PROMOTIONS;
 }
 
-export function getRacecards() {
-  return RACECARDS;
+export function getRacecards(): RaceEvent[] {
+  return RACECARD_TEMPLATES.map((tpl, i) => ({
+    ...tpl,
+    startTime: new Date(Date.now() + RACECARD_OFFSETS_MIN[i] * 60 * 1000).toISOString(),
+  }));
 }
 
+const VIRTUAL_SPORTS_TEMPLATES = [
+  {
+    id: 'v1',
+    league: 'Virtual Football Premier',
+    fixture: 'Northbridge vs Westport',
+    offsetMin: 5,
+    markets: [
+      { id: '1', name: 'Home', odds: 2.35 },
+      { id: 'x', name: 'Draw', odds: 3.4 },
+      { id: '2', name: 'Away', odds: 2.85 },
+    ],
+  },
+  {
+    id: 'v2',
+    league: 'Virtual Basketball Pro',
+    fixture: 'Lions vs Hawks',
+    offsetMin: 9,
+    markets: [
+      { id: 'h', name: 'Lions', odds: 1.92 },
+      { id: 'a', name: 'Hawks', odds: 1.92 },
+    ],
+  },
+  {
+    id: 'v3',
+    league: 'Virtual Greyhounds',
+    fixture: 'Race 8 - 480m',
+    offsetMin: 3,
+    markets: [
+      { id: '1', name: 'Trap 1', odds: 3.2 },
+      { id: '2', name: 'Trap 2', odds: 4.1 },
+      { id: '3', name: 'Trap 3', odds: 5.8 },
+    ],
+  },
+];
+
 export function getVirtualSportsFeed() {
-  return [
-    {
-      id: 'v1',
-      league: 'Virtual Football Premier',
-      fixture: 'Northbridge vs Westport',
-      kickOff: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      markets: [
-        { id: '1', name: 'Home', odds: 2.35 },
-        { id: 'x', name: 'Draw', odds: 3.4 },
-        { id: '2', name: 'Away', odds: 2.85 },
-      ],
-    },
-    {
-      id: 'v2',
-      league: 'Virtual Basketball Pro',
-      fixture: 'Lions vs Hawks',
-      kickOff: new Date(Date.now() + 9 * 60 * 1000).toISOString(),
-      markets: [
-        { id: 'h', name: 'Lions', odds: 1.92 },
-        { id: 'a', name: 'Hawks', odds: 1.92 },
-      ],
-    },
-    {
-      id: 'v3',
-      league: 'Virtual Greyhounds',
-      fixture: 'Race 8 - 480m',
-      kickOff: new Date(Date.now() + 3 * 60 * 1000).toISOString(),
-      markets: [
-        { id: '1', name: 'Trap 1', odds: 3.2 },
-        { id: '2', name: 'Trap 2', odds: 4.1 },
-        { id: '3', name: 'Trap 3', odds: 5.8 },
-      ],
-    },
-  ];
+  return VIRTUAL_SPORTS_TEMPLATES.map(({ offsetMin, ...rest }) => ({
+    ...rest,
+    kickOff: new Date(Date.now() + offsetMin * 60 * 1000).toISOString(),
+  }));
 }

@@ -15,8 +15,16 @@ function optionalEnv(key: string, defaultValue: string): string {
   return process.env[key] || defaultValue;
 }
 
+const nodeEnv = optionalEnv('NODE_ENV', 'development');
+
+if (nodeEnv === 'production' && optionalEnv('COOKIE_SECURE', '') !== 'true') {
+  console.warn(
+    '[SECURITY] COOKIE_SECURE is not set to "true" in production. Cookies will not have the Secure flag.',
+  );
+}
+
 export const env = {
-  NODE_ENV: optionalEnv('NODE_ENV', 'development'),
+  NODE_ENV: nodeEnv,
   PORT: parseInt(optionalEnv('PORT', '4000'), 10),
 
   // Database — prefer DATABASE_URL (Railway), fall back to individual vars
@@ -37,7 +45,4 @@ export const env = {
   JWT_REFRESH_SECRET: requireEnv('JWT_REFRESH_SECRET'),
 
   CORS_ORIGIN: optionalEnv('CORS_ORIGIN', 'http://localhost:3000'),
-
-  SPORTS_API_KEY: optionalEnv('SPORTS_API_KEY', ''),
-  SPORTS_API_BASE_URL: optionalEnv('SPORTS_API_BASE_URL', ''),
 } as const;

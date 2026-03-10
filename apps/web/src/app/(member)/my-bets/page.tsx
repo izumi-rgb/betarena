@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
+import { CashoutModal } from '@/components/bets/CashoutModal';
+import type { UserBet as CashoutBet } from '@/components/bets/BetCard';
 
 type BetSelection = {
   selection_name?: string;
@@ -106,6 +108,7 @@ function statusTone(status: string): string {
 
 export default function MyBetsPage() {
   const [status, setStatus] = useState('all');
+  const [cashoutTarget, setCashoutTarget] = useState<UserBet | null>(null);
   const queryClient = useQueryClient();
 
   const { data: betsData, isLoading, error } = useQuery({
@@ -119,15 +122,32 @@ export default function MyBetsPage() {
   });
 
   const cashoutMutation = useMutation({
-    mutationFn: async (betUid: string) => {
-      const res = await apiPost(`/api/bets/${betUid}/cashout`, {});
+    mutationFn: async ({ betUid, percent }: { betUid: string; percent?: number }) => {
+      const body: Record<string, unknown> = {};
+      if (percent !== undefined) body.percent = percent;
+      const res = await apiPost(`/api/bets/${betUid}/cashout`, body);
       return res.data;
     },
     onSuccess: () => {
+      setCashoutTarget(null);
       void queryClient.invalidateQueries({ queryKey: ['bets', 'my-bets'] });
       void queryClient.invalidateQueries({ queryKey: ['bets', 'stats'] });
     },
   });
+
+  const handleOpenCashout = useCallback((bet: UserBet) => {
+    setCashoutTarget(bet);
+  }, []);
+
+  const handleFullCashout = useCallback(async () => {
+    if (!cashoutTarget) return;
+    await cashoutMutation.mutateAsync({ betUid: cashoutTarget.bet_uid });
+  }, [cashoutTarget, cashoutMutation]);
+
+  const handlePartialCashout = useCallback(async (percent: number) => {
+    if (!cashoutTarget) return;
+    await cashoutMutation.mutateAsync({ betUid: cashoutTarget.bet_uid, percent });
+  }, [cashoutTarget, cashoutMutation]);
 
   const rows = useMemo(() => {
     const sourceBets = betsData?.bets || [];
@@ -242,11 +262,10 @@ export default function MyBetsPage() {
                 <div className="text-right">
                   {bet.status === 'open' && bet.cashout_available ? (
                     <button
-                      onClick={() => cashoutMutation.mutate(bet.bet_uid)}
-                      disabled={cashoutMutation.isPending}
+                      onClick={() => handleOpenCashout(bet)}
                       className="rounded-lg bg-[#00C37B] px-3 py-2 text-xs font-bold text-[#0B0E1A] disabled:opacity-50"
                     >
-                      {cashoutMutation.isPending ? 'Processing...' : `Cashout ${formatCredits(bet.cashout_offer)}`}
+                      Cashout {formatCredits(bet.cashout_offer)}
                     </button>
                   ) : (
                     <span className="font-mono text-xs text-[#94A3B8]">
@@ -263,6 +282,16 @@ export default function MyBetsPage() {
           </div>
         )}
       </div>
+
+      {cashoutTarget && (
+        <CashoutModal
+          bet={cashoutTarget as unknown as CashoutBet}
+          isSubmitting={cashoutMutation.isPending}
+          onClose={() => setCashoutTarget(null)}
+          onSubmitFull={handleFullCashout}
+          onSubmitPartial={handlePartialCashout}
+        />
+      )}
     </div>
   );
 }

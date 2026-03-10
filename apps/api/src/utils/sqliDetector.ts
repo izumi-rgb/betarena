@@ -8,13 +8,9 @@ const SQLI_PATTERNS: RegExp[] = [
   /(\/\*[\s\S]*?\*\/)/,
   /(\bWAITFOR\b\s+\bDELAY\b)/i,
   /(\bBENCHMARK\b\s*\()/i,
-  /(\bSLEEP\b\s*\()/i,
   /(\bLOAD_FILE\b\s*\()/i,
   /(\bINTO\s+OUTFILE\b)/i,
   /(\bINFORMATION_SCHEMA\b)/i,
-  /(\bCHAR\b\s*\(\s*\d+)/i,
-  /(\bCONCAT\b\s*\()/i,
-  /(0x[0-9a-fA-F]+)/,
   /(\b(xp_cmdshell|sp_executesql)\b)/i,
 ];
 
@@ -55,6 +51,10 @@ function deepScan(obj: unknown): SqliResult | null {
   return null;
 }
 
-export function scanRequestForSqli(body: unknown, query: unknown, params: unknown): SqliResult | null {
+export function scanRequestForSqli(body: unknown, query: unknown, params: unknown, path?: string): SqliResult | null {
+  // Skip SQLi scanning for auth routes (passwords may contain trigger words)
+  if (path && (path.startsWith('/api/auth/login') || path.startsWith('/api/auth/change-password'))) {
+    return null;
+  }
   return deepScan(body) || deepScan(query) || deepScan(params);
 }

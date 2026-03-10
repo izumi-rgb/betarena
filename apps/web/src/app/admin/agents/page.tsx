@@ -474,7 +474,6 @@ export default function AgentsPage() {
 
       {resetTarget && (
         <ResetPasswordModal
-          targetId={resetTarget.id}
           targetName={resetTarget.name}
           apiEndpoint={`/api/admin/users/${resetTarget.id}/reset-password`}
           onClose={() => setResetTarget(null)}

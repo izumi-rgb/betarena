@@ -15,6 +15,7 @@ interface BetInput {
   ew_places?: number;
   handicap_line?: number;
   total_line?: number;
+  idempotency_key?: string;
 }
 
 export function validateBetInput(input: BetInput): ValidationResult {

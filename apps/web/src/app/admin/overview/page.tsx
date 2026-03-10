@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
 
@@ -84,6 +84,20 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function OverviewPage() {
+  const lastFetchRef = useRef(Date.now());
+  const [dataTimeAgo, setDataTimeAgo] = useState('just now');
+
+  // Update the "Xs ago" display every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const seconds = Math.floor((Date.now() - lastFetchRef.current) / 1000);
+      if (seconds < 5) setDataTimeAgo('just now');
+      else if (seconds < 60) setDataTimeAgo(`${seconds}s ago`);
+      else setDataTimeAgo(`${Math.floor(seconds / 60)}m ago`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const agentsQuery = useQuery({
     queryKey: ['admin', 'agents'],
     queryFn: () => apiGet<AgentRow[]>('/api/admin/agents').then((r) => r.data || []),
@@ -104,6 +118,11 @@ export default function OverviewPage() {
     queryFn: () => apiGet<LogsEnvelope>('/api/admin/logs?page=1&limit=4').then((r) => r.data || { logs: [], total: 0 }),
     refetchInterval: 15_000,
   });
+
+  // Update lastFetchRef whenever any query refetches successfully
+  useEffect(() => {
+    lastFetchRef.current = Date.now();
+  }, [agentsQuery.dataUpdatedAt, membersQuery.dataUpdatedAt, creditsQuery.dataUpdatedAt, logsQuery.dataUpdatedAt]);
 
   const stats = useMemo(() => {
     const agents = agentsQuery.data || [];
@@ -147,7 +166,7 @@ export default function OverviewPage() {
         <div className="flex items-center justify-end gap-6 w-1/4">
           <div className="flex flex-col items-end">
             <span className="text-[#64748B] text-[10px] font-bold uppercase">Data Refresh</span>
-            <span className="text-[#00C37B] text-[11px] font-mono">Live • 3s ago</span>
+            <span className="text-[#00C37B] text-[11px] font-mono">Live &bull; {dataTimeAgo}</span>
           </div>
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 border-2 border-[#1E293B] shadow-lg" />
         </div>

@@ -1,3 +1,5 @@
+// TODO: Consider refactoring to use createApiSportsProvider from ./api-sports-factory.ts
+// Left as-is because it has sport-specific logic (fixtures, odds endpoints) beyond the standard pattern.
 import axios from 'axios';
 import logger from '../../../config/logger';
 import {

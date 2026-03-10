@@ -2,9 +2,7 @@
 
 import { create } from "zustand";
 import { apiPost, apiGet } from "@/lib/api";
-import { connectSocket, disconnectSocket } from "@/lib/socket";
-
-const SOCKET_TOKEN_STORAGE_KEY = "betarena.socketAccessToken";
+import { connectSocket, disconnectSocket, SOCKET_TOKEN_STORAGE_KEY } from "@/lib/socket";
 
 function readStoredSocketToken(): string | null {
   if (typeof window === "undefined") {
@@ -102,7 +100,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       );
       const freshToken = res.data.accessToken;
       get().setToken(freshToken);
-      connectSocket(freshToken);
       return true;
     } catch {
       get().setToken(null);
@@ -120,10 +117,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     try {
       const res = await apiGet<User>("/api/auth/me");
       set({ user: res.data, isAuthenticated: true });
-      const token = get().accessToken;
-      if (token) {
-        connectSocket(token);
-      }
       return true;
     } catch {
       get().setToken(null);

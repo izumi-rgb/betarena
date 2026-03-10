@@ -2,15 +2,8 @@
 
 import Link from 'next/link';
 import { useBetSlipStore } from '@/stores/betSlipStore';
+import { resolveEventHref } from '@/lib/sportRoutes';
 import type { LiveEvent } from '@/hooks/useLiveEvents';
-
-function eventHref(event: LiveEvent): string {
-  const sport = String(event.sport || '').toLowerCase().trim();
-  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing', 'ice_hockey', 'baseball', 'rugby', 'handball', 'volleyball'].includes(sport)) {
-    return `/sports/${sport}/${event.id}`;
-  }
-  return '/sports';
-}
 
 function statusBadge(status?: string) {
   switch (status) {
@@ -41,7 +34,7 @@ export function LiveMatchCard({ event }: { event: LiveEvent }) {
           {statusBadge(event.status).label}
         </span>
       </div>
-      <Link href={eventHref(event)} className="text-sm font-semibold text-white hover:text-[#00C37B]">
+      <Link href={resolveEventHref(event)} className="text-sm font-semibold text-white hover:text-[#00C37B]">
         {event.homeTeam?.name || 'Home'} vs {event.awayTeam?.name || 'Away'}
       </Link>
       <div className="mt-1 text-sm text-[#94A3B8]">

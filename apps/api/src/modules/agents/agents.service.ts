@@ -11,39 +11,55 @@ export async function createMember(
   ip: string,
   userAgent: string
 ) {
-  const memberCount = await db('users')
-    .where({ parent_agent_id: agentId, role: 'member' })
-    .count('id as count')
-    .first();
-
-  const sequence = Number(memberCount?.count || 0) + 1;
-  const displayId = `${agentDisplayId}_M${sequence}`;
-  const username = `member_${displayId.toLowerCase()}`;
   const password = generatePassword();
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const result = await db.transaction(async (trx) => {
-    const [member] = await trx('users').insert({
-      display_id: displayId,
-      username,
-      password_hash: passwordHash,
-      role: 'member',
-      nickname: nickname || null,
-      is_active: true,
-      created_by: agentId,
-      parent_agent_id: agentId,
-      can_create_sub_agent: false,
-    }).returning('*');
+  const maxRetries = 5;
+  let result: any;
+  let displayId = '';
 
-    await trx('credit_accounts').insert({
-      user_id: member.id,
-      balance: 0,
-      total_received: 0,
-      total_sent: 0,
-    });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const memberCount = await db('users')
+        .where({ parent_agent_id: agentId, role: 'member' })
+        .count('id as count')
+        .first();
 
-    return member;
-  });
+      const sequence = Number(memberCount?.count || 0) + 1 + attempt;
+      displayId = `${agentDisplayId}_M${sequence}`;
+      const username = `member_${displayId.toLowerCase()}`;
+
+      result = await db.transaction(async (trx) => {
+        const [member] = await trx('users').insert({
+          display_id: displayId,
+          username,
+          password_hash: passwordHash,
+          role: 'member',
+          nickname: nickname || null,
+          is_active: true,
+          created_by: agentId,
+          parent_agent_id: agentId,
+          can_create_sub_agent: false,
+        }).returning('*');
+
+        await trx('credit_accounts').insert({
+          user_id: member.id,
+          balance: 0,
+          total_received: 0,
+          total_sent: 0,
+        });
+
+        return member;
+      });
+
+      break; // success
+    } catch (err: any) {
+      const isUniqueViolation =
+        err.code === '23505' ||
+        (err.message && err.message.includes('duplicate key') && err.message.includes('display_id'));
+      if (!isUniqueViolation || attempt === maxRetries - 1) throw err;
+    }
+  }
 
   await writeSystemLog({
     user_id: agentId,
@@ -58,7 +74,7 @@ export async function createMember(
   return {
     id: result.id,
     display_id: displayId,
-    username,
+    username: result.username,
     password,
     nickname: nickname || null,
     role: 'member',
@@ -134,38 +150,54 @@ export async function createSubAgent(
     throw new Error('NO_SUB_AGENT_PRIVILEGE');
   }
 
-  const subAgentCount = await db('users')
-    .where({ parent_agent_id: agentId, role: 'sub_agent' })
-    .count('id as count')
-    .first();
-
-  const sequence = Number(subAgentCount?.count || 0) + 1;
-  const displayId = `${agentDisplayId}_SA${sequence}`;
-  const username = `subagent_${displayId.toLowerCase()}`;
   const password = generatePassword();
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const result = await db.transaction(async (trx) => {
-    const [subAgent] = await trx('users').insert({
-      display_id: displayId,
-      username,
-      password_hash: passwordHash,
-      role: 'sub_agent',
-      is_active: true,
-      created_by: agentId,
-      parent_agent_id: agentId,
-      can_create_sub_agent: false,
-    }).returning('*');
+  const maxRetries = 5;
+  let result: any;
+  let displayId = '';
 
-    await trx('credit_accounts').insert({
-      user_id: subAgent.id,
-      balance: 0,
-      total_received: 0,
-      total_sent: 0,
-    });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const subAgentCount = await db('users')
+        .where({ parent_agent_id: agentId, role: 'sub_agent' })
+        .count('id as count')
+        .first();
 
-    return subAgent;
-  });
+      const sequence = Number(subAgentCount?.count || 0) + 1 + attempt;
+      displayId = `${agentDisplayId}_SA${sequence}`;
+      const username = `subagent_${displayId.toLowerCase()}`;
+
+      result = await db.transaction(async (trx) => {
+        const [subAgent] = await trx('users').insert({
+          display_id: displayId,
+          username,
+          password_hash: passwordHash,
+          role: 'sub_agent',
+          is_active: true,
+          created_by: agentId,
+          parent_agent_id: agentId,
+          can_create_sub_agent: false,
+        }).returning('*');
+
+        await trx('credit_accounts').insert({
+          user_id: subAgent.id,
+          balance: 0,
+          total_received: 0,
+          total_sent: 0,
+        });
+
+        return subAgent;
+      });
+
+      break; // success
+    } catch (err: any) {
+      const isUniqueViolation =
+        err.code === '23505' ||
+        (err.message && err.message.includes('duplicate key') && err.message.includes('display_id'));
+      if (!isUniqueViolation || attempt === maxRetries - 1) throw err;
+    }
+  }
 
   await writeSystemLog({
     user_id: agentId,
@@ -180,7 +212,7 @@ export async function createSubAgent(
   return {
     id: result.id,
     display_id: displayId,
-    username,
+    username: result.username,
     password,
     role: 'sub_agent',
   };

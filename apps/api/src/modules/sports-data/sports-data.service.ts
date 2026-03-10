@@ -663,23 +663,6 @@ export async function getLiveEvents(): Promise<{ live: LiveEvent[]; upcoming: Li
   return refreshAggregateCache();
 }
 
-export async function getEvent(eventId: string): Promise<LiveEvent | null> {
-  try {
-    const raw = await apiFootball.getFixture(eventId);
-    if (raw) {
-      const event = normalizeApiFootball(raw);
-      if (event) {
-        // Enrich with odds
-        const markets = await getMarkets(eventId);
-        return { ...event, markets };
-      }
-    }
-  } catch (err) {
-    logger.warn('Failed to fetch event from API-Football', { eventId, error: (err as Error).message });
-  }
-  return null;
-}
-
 export async function getMarkets(eventId: string): Promise<Market[]> {
   // Try to find odds from the aggregate cache first (no API call)
   try {
@@ -694,20 +677,6 @@ export async function getMarkets(eventId: string): Promise<Market[]> {
     }
   } catch (err) {
     logger.debug('Markets cache lookup failed', { eventId, error: (err as Error).message });
-  }
-
-  // Fall back to building fresh odds lookup
-  try {
-    const oddsLookup = await buildOddsLookup();
-    // Try to match by iterating the lookup (keyed by team names)
-    for (const markets of oddsLookup.values()) {
-      if (markets.length > 0) {
-        // The lookup doesn't store event IDs, so we can't match directly.
-        // Return empty — the event detail page gets odds from the live feed.
-      }
-    }
-  } catch (err) {
-    logger.debug('Markets fetch failed', { eventId, error: (err as Error).message });
   }
 
   return [];

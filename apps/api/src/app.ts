@@ -20,6 +20,9 @@ import resultsRoutes from './modules/results/results.routes';
 
 const app = express();
 
+// Trust first proxy (Nginx) so req.ip returns real client IP for rate limiting
+app.set('trust proxy', 1);
+
 app.use(helmet());
 const allowedOrigins = env.CORS_ORIGIN
   .split(',')

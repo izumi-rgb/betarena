@@ -15,7 +15,6 @@
   "dependencies": {
     "@betarena/shared": "*",
     "axios": "^1.13.6",
-    "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -34,7 +33,6 @@
     "xss": "^1.0.15"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",

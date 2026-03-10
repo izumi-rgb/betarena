@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { useBetSlipStore } from '@/stores/betSlipStore';
+import { resolveEventHref } from '@/lib/sportRoutes';
 
 type Selection = {
   id: string;
@@ -28,15 +29,25 @@ export type HomeEvent = {
   markets?: Market[];
 };
 
-function resolveEventHref(event: HomeEvent): string {
-  const sport = String(event.sport || '').toLowerCase().trim();
-  if (['tennis', 'basketball', 'golf', 'esports', 'cricket', 'football', 'horse-racing'].includes(sport)) {
-    return `/sports/${sport}/${event.id}`;
-  }
-  return '/sports';
+function SkeletonCard() {
+  return (
+    <div className="animate-pulse rounded-lg border border-[#1E293B] bg-[#1A2235] p-3">
+      <div className="flex items-center justify-between">
+        <div className="h-3 w-16 rounded bg-[#1E293B]" />
+        <div className="h-3 w-20 rounded bg-[#1E293B]" />
+      </div>
+      <div className="mt-2 h-5 w-2/3 rounded bg-[#1E293B]" />
+      <div className="mt-1 h-3 w-1/2 rounded bg-[#1E293B]" />
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="h-12 rounded bg-[#1E293B]" />
+        <div className="h-12 rounded bg-[#1E293B]" />
+        <div className="h-12 rounded bg-[#1E293B]" />
+      </div>
+    </div>
+  );
 }
 
-export function FeaturedEvents({ events }: { events: HomeEvent[] }) {
+export function FeaturedEvents({ events, loading }: { events: HomeEvent[]; loading?: boolean }) {
   const togglePick = useBetSlipStore((state) => state.togglePick);
   const picks = useBetSlipStore((state) => state.picks);
 
@@ -46,7 +57,14 @@ export function FeaturedEvents({ events }: { events: HomeEvent[] }) {
     <section className="rounded-xl border border-[#1E293B] bg-[#111827] p-4">
       <h2 className="text-lg font-bold text-white">Featured Events</h2>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {quickEvents.map((event) => {
+        {loading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : quickEvents.map((event) => {
           const markets = event.markets || [];
           const primary = markets[0];
           const selections = (primary?.selections || []).slice(0, 3);

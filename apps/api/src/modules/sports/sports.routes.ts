@@ -60,7 +60,7 @@ router.get('/:sport/competitions/:id/events', async (req: Request, res: Response
 
 router.get('/events/:id/markets', async (req: Request, res: Response) => {
   try {
-    const result = await getEventMarkets(parseInt(String(req.params.id), 10));
+    const result = await getEventMarkets(req.params.id as string);
     res.json({ success: true, data: result, message: 'Markets retrieved', error: null });
   } catch (err) {
     const msg = (err as Error).message;

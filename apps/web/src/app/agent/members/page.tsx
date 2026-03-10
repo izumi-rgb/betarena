@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/lib/api';
 import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
 import { ResetPasswordModal } from '@/components/shared/ResetPasswordModal';
@@ -224,6 +224,177 @@ function CreateMemberModal({
 }
 
 /* ------------------------------------------------------------------ */
+/*  CreditTransferModal                                                */
+/* ------------------------------------------------------------------ */
+
+function CreditTransferModal({
+  member,
+  direction,
+  onClose,
+  onSuccess,
+}: {
+  member: MemberRow;
+  direction: 'add' | 'remove';
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const numAmount = Number.parseFloat(amount);
+      if (!Number.isFinite(numAmount) || numAmount <= 0) {
+        throw new Error('Enter a valid positive amount');
+      }
+      const payload =
+        direction === 'add'
+          ? { to_user_id: member.id, amount: numAmount }
+          : { to_user_id: member.id, amount: -numAmount };
+      await apiPost('/api/credits/transfer', payload);
+    },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        (err instanceof Error ? err.message : 'Transfer failed');
+      setError(msg);
+    },
+  });
+
+  const label = direction === 'add' ? 'Add Credits' : 'Remove Credits';
+  const color = direction === 'add' ? '#00C37B' : '#EF4444';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-xl border border-[#1E293B] bg-[#1A2235] p-6 shadow-2xl">
+        <h2 className="mb-1 text-lg font-bold text-white">{label}</h2>
+        <p className="mb-5 text-[13px] text-[#64748B]">
+          Member: <span className="text-white">@{member.username || member.display_id || `#${member.id}`}</span>
+          {' '}· Current balance: <span className="font-mono text-white">{fmt(parseAmount(member.balance))} CR</span>
+        </p>
+
+        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wider text-[#64748B]">
+          Amount (CR)
+        </label>
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={amount}
+          onChange={(e) => {
+            setAmount(e.target.value);
+            setError('');
+          }}
+          placeholder="0.00"
+          className="mb-4 w-full rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-3 py-2.5 font-mono text-white placeholder-[#475569] outline-none focus:border-[#00C37B]"
+          autoFocus
+          onKeyDown={(e) => e.key === 'Enter' && mutation.mutate()}
+        />
+
+        {error && <p className="mb-3 text-[13px] text-[#EF4444]">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-4 py-2.5 text-[14px] font-semibold text-[#94A3B8] transition hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="flex-1 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white transition disabled:opacity-50"
+            style={{ backgroundColor: color }}
+          >
+            {mutation.isPending ? 'Processing...' : label}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  MemberDetailModal                                                  */
+/* ------------------------------------------------------------------ */
+
+function MemberDetailModal({
+  member,
+  onClose,
+}: {
+  member: MemberRow;
+  onClose: () => void;
+}) {
+  const bal = parseAmount(member.balance);
+  const pnl = parseAmount(member.pnl_7d);
+  const isActive = member.is_active !== false;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-xl border border-[#1E293B] bg-[#1A2235] p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">
+            Member Details
+          </h2>
+          <button onClick={onClose} className="text-[#94A3B8] hover:text-white">
+            Close
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between border-b border-[#1E293B] pb-2">
+            <span className="text-[13px] text-[#64748B]">Member ID</span>
+            <span className="font-mono text-[14px] text-white">{member.display_id || `#${member.id}`}</span>
+          </div>
+          <div className="flex justify-between border-b border-[#1E293B] pb-2">
+            <span className="text-[13px] text-[#64748B]">Username</span>
+            <span className="text-[14px] text-white">@{member.username || 'unknown'}</span>
+          </div>
+          <div className="flex justify-between border-b border-[#1E293B] pb-2">
+            <span className="text-[13px] text-[#64748B]">Balance</span>
+            <span className="font-mono text-[14px] text-white">{fmt(bal)} CR</span>
+          </div>
+          <div className="flex justify-between border-b border-[#1E293B] pb-2">
+            <span className="text-[13px] text-[#64748B]">Open Bets</span>
+            <span className="font-mono text-[14px] text-white">{member.open_bets ?? 0}</span>
+          </div>
+          <div className="flex justify-between border-b border-[#1E293B] pb-2">
+            <span className="text-[13px] text-[#64748B]">7-Day P&L</span>
+            <span className={`font-mono text-[14px] ${pnl >= 0 ? 'text-[#00C37B]' : 'text-[#EF4444]'}`}>
+              {pnl >= 0 ? '+' : ''}{fmt(pnl)} CR
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[13px] text-[#64748B]">Status</span>
+            {isActive ? (
+              <span className="inline-block rounded-full bg-[#00C37B]/15 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#00C37B]">
+                Active
+              </span>
+            ) : (
+              <span className="inline-block rounded-full bg-[#EF4444]/15 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#EF4444]">
+                Suspended
+              </span>
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-6 w-full rounded-lg bg-[#00C37B] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#00A366]"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -233,6 +404,8 @@ export default function AgentMembersPage() {
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [resetTarget, setResetTarget] = useState<{ id: number; name: string } | null>(null);
+  const [creditTarget, setCreditTarget] = useState<{ member: MemberRow; direction: 'add' | 'remove' } | null>(null);
+  const [manageTarget, setManageTarget] = useState<MemberRow | null>(null);
 
   /* ---------- data ---------- */
 
@@ -462,12 +635,14 @@ export default function AgentMembersPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button
+                        onClick={() => setCreditTarget({ member: m, direction: 'add' })}
                         className="flex h-7 w-7 items-center justify-center rounded border border-[#1E293B] bg-[#0B0E1A] text-[14px] font-bold text-[#94A3B8] transition hover:border-[#00C37B] hover:text-[#00C37B]"
                         title="Add credits"
                       >
                         +
                       </button>
                       <button
+                        onClick={() => setCreditTarget({ member: m, direction: 'remove' })}
                         className="flex h-7 w-7 items-center justify-center rounded border border-[#1E293B] bg-[#0B0E1A] text-[14px] font-bold text-[#94A3B8] transition hover:border-[#EF4444] hover:text-[#EF4444]"
                         title="Remove credits"
                       >
@@ -514,7 +689,10 @@ export default function AgentMembersPage() {
                       >
                         RESET PW
                       </button>
-                      <button className="rounded border border-[#1E293B] bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#64748B] transition hover:text-white">
+                      <button
+                        onClick={() => setManageTarget(m)}
+                        className="rounded border border-[#1E293B] bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#64748B] transition hover:text-white"
+                      >
                         MANAGE
                       </button>
                     </div>
@@ -588,10 +766,27 @@ export default function AgentMembersPage() {
 
       {resetTarget && (
         <ResetPasswordModal
-          targetId={resetTarget.id}
           targetName={resetTarget.name}
           apiEndpoint={`/api/agents/users/${resetTarget.id}/reset-password`}
           onClose={() => setResetTarget(null)}
+        />
+      )}
+
+      {creditTarget && (
+        <CreditTransferModal
+          member={creditTarget.member}
+          direction={creditTarget.direction}
+          onClose={() => setCreditTarget(null)}
+          onSuccess={() => {
+            void queryClient.invalidateQueries({ queryKey: ['agent', 'members'] });
+          }}
+        />
+      )}
+
+      {manageTarget && (
+        <MemberDetailModal
+          member={manageTarget}
+          onClose={() => setManageTarget(null)}
         />
       )}
     </div>

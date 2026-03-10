@@ -3,10 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api';
-import { connectSocket, getSocket, joinEventRoom, leaveEventRoom } from '@/lib/socket';
 import { useBetSlipStore } from '@/stores/betSlipStore';
 import { useAuthStore } from '@/stores/authStore';
 import { SportSidebar, TopHeader } from '@/components/app/SportSidebar';
+import { LiveBadge, OddsButton, StatCard, MarketAccordion } from '@/components/sports/EventDetailComponents';
+import { useEventSocket } from '@/hooks/useEventSocket';
 
 type MarketSelection = {
   id: string;
@@ -60,74 +61,6 @@ type BetPick = {
   odds: number;
 };
 
-function LiveBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#EF4444]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#EF4444]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444]" /> Live
-    </span>
-  );
-}
-
-function OddsButton({
-  label,
-  odds,
-  active,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  odds: number;
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      className={`rounded-lg border px-2 py-2 text-center transition-all ${
-        disabled
-          ? 'cursor-not-allowed border-[#1E293B] bg-[#0B0E1A]/40 text-[#64748B]'
-          : active
-            ? 'border-[#00C37B] bg-[#00C37B]/15 text-[#00C37B]'
-            : 'border-[#1E293B] bg-[#0B0E1A] text-white hover:border-[#00C37B]/60'
-      }`}
-    >
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-[#94A3B8]">{label}</div>
-      <div className="mt-0.5 font-mono text-[15px] font-bold text-[#F59E0B]">{odds.toFixed(2)}</div>
-    </button>
-  );
-}
-
-function StatCard({ label, home, away }: { label: string; home: number; away: number }) {
-  return (
-    <div className="rounded-lg border border-[#1E293B] bg-[#111827] px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-[#64748B]">{label}</div>
-      <div className="mt-1 flex items-center justify-between font-mono text-sm font-bold text-white">
-        <span>{home}</span>
-        <span className="text-[#334155]">|</span>
-        <span>{away}</span>
-      </div>
-    </div>
-  );
-}
-
-function MarketAccordion({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="overflow-hidden rounded-xl border border-[#1E293B] bg-[#1A2235]">
-      <button
-        onClick={() => setOpen((s) => !s)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
-      >
-        <span className="text-sm font-semibold text-white">{title}</span>
-        <span className="text-[#94A3B8]">{open ? '−' : '+'}</span>
-      </button>
-      {open ? <div className="border-t border-[#1E293B] p-3">{children}</div> : null}
-    </div>
-  );
-}
-
 function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; onPick: (pick: BetPick) => void; picks: BetPick[]; eventId: number }) {
   const stats = event.stats ?? {};
 
@@ -151,83 +84,6 @@ function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; 
   );
 
   const marketByType = new Map(event.markets.map((m) => [m.type || m.name.toLowerCase().replace(/\s+/g, '_'), m]));
-
-  const defaultSelections: Record<string, MarketSelection[]> = {
-    match_winner_ot: [
-      { id: 'mw_home', name: event.homeTeam.name, odds: 1.80 },
-      { id: 'mw_away', name: event.awayTeam.name, odds: 2.00 },
-    ],
-    point_spread: [-3.5, -1.5, 1.5, 3.5].flatMap((line, idx) => [
-      { id: `ps_h_${idx}`, name: `${event.homeTeam.name} ${line > 0 ? '+' : ''}${line}`, odds: 1.90 },
-      { id: `ps_a_${idx}`, name: `${event.awayTeam.name} ${line > 0 ? '+' : ''}${line}`, odds: 1.90 },
-    ]),
-    total_points_ou: [215.5, 220.5, 224.5, 228.5].flatMap((line) => [
-      { id: `tpo_${line}`, name: `Over ${line}`, odds: 1.90 },
-      { id: `tpu_${line}`, name: `Under ${line}`, odds: 1.90 },
-    ]),
-    moneyline: [
-      { id: 'ml_home', name: event.homeTeam.name, odds: 1.82 },
-      { id: 'ml_away', name: event.awayTeam.name, odds: 1.98 },
-    ],
-    first_quarter_winner: [
-      { id: 'fq_home', name: event.homeTeam.name, odds: 1.87 },
-      { id: 'fq_away', name: event.awayTeam.name, odds: 1.93 },
-    ],
-    first_half_winner: [
-      { id: 'fh_home', name: event.homeTeam.name, odds: 1.85 },
-      { id: 'fh_away', name: event.awayTeam.name, odds: 1.95 },
-    ],
-    each_quarter_winner: [
-      { id: 'eq_q1_home', name: 'Q1 Home', odds: 1.88 },
-      { id: 'eq_q1_away', name: 'Q1 Away', odds: 1.92 },
-      { id: 'eq_q2_home', name: 'Q2 Home', odds: 1.86 },
-      { id: 'eq_q2_away', name: 'Q2 Away', odds: 1.94 },
-      { id: 'eq_q3_home', name: 'Q3 Home', odds: 1.91 },
-      { id: 'eq_q3_away', name: 'Q3 Away', odds: 1.89 },
-      { id: 'eq_q4_home', name: 'Q4 Home', odds: 1.90 },
-      { id: 'eq_q4_away', name: 'Q4 Away', odds: 1.90 },
-    ],
-    first_half_total_points: [108.5, 112.5].flatMap((line) => [
-      { id: `fhp_o_${line}`, name: `Over ${line}`, odds: 1.90 },
-      { id: `fhp_u_${line}`, name: `Under ${line}`, odds: 1.90 },
-    ]),
-    winning_margin: [
-      { id: 'wm_1_5', name: '1-5', odds: 5.50 },
-      { id: 'wm_6_10', name: '6-10', odds: 4.20 },
-      { id: 'wm_11_15', name: '11-15', odds: 6.00 },
-      { id: 'wm_16_plus', name: '16+', odds: 7.80 },
-    ],
-    player_points_ou: [
-      { id: 'pp_1_o', name: 'Player 1 Over 24.5', odds: 1.87 },
-      { id: 'pp_1_u', name: 'Player 1 Under 24.5', odds: 1.93 },
-      { id: 'pp_2_o', name: 'Player 2 Over 21.5', odds: 1.85 },
-      { id: 'pp_2_u', name: 'Player 2 Under 21.5', odds: 1.95 },
-      { id: 'pp_3_o', name: 'Player 3 Over 18.5', odds: 1.92 },
-      { id: 'pp_3_u', name: 'Player 3 Under 18.5', odds: 1.88 },
-      { id: 'pp_4_o', name: 'Player 4 Over 15.5', odds: 1.90 },
-      { id: 'pp_4_u', name: 'Player 4 Under 15.5', odds: 1.90 },
-      { id: 'pp_5_o', name: 'Player 5 Over 12.5', odds: 1.94 },
-      { id: 'pp_5_u', name: 'Player 5 Under 12.5', odds: 1.86 },
-    ],
-    player_assists_ou: [
-      { id: 'pa_1_o', name: 'Player 1 Over 6.5', odds: 1.88 },
-      { id: 'pa_1_u', name: 'Player 1 Under 6.5', odds: 1.92 },
-      { id: 'pa_2_o', name: 'Player 2 Over 4.5', odds: 1.90 },
-      { id: 'pa_2_u', name: 'Player 2 Under 4.5', odds: 1.90 },
-    ],
-    player_rebounds_ou: [
-      { id: 'pr_1_o', name: 'Player 1 Over 9.5', odds: 1.86 },
-      { id: 'pr_1_u', name: 'Player 1 Under 9.5', odds: 1.94 },
-      { id: 'pr_2_o', name: 'Player 2 Over 7.5', odds: 1.89 },
-      { id: 'pr_2_u', name: 'Player 2 Under 7.5', odds: 1.91 },
-    ],
-    race_to_points: [
-      { id: 'r10_home', name: `${event.homeTeam.name} to 10`, odds: 1.83 },
-      { id: 'r10_away', name: `${event.awayTeam.name} to 10`, odds: 1.97 },
-      { id: 'r20_home', name: `${event.homeTeam.name} to 20`, odds: 1.85 },
-      { id: 'r20_away', name: `${event.awayTeam.name} to 20`, odds: 1.95 },
-    ],
-  };
 
   return (
     <div className="space-y-4">
@@ -270,24 +126,28 @@ function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; 
 
       {marketGroups.map((g) => {
         const m = marketByType.get(g.key);
-        const selections = m?.selections?.length ? m.selections : defaultSelections[g.key] ?? [];
+        const selections = m?.selections ?? [];
         return (
           <MarketAccordion key={g.key} title={g.title}>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-              {selections.map((s) => {
-                const active = picks.some((p) => p.id === s.id);
-                return (
-                  <OddsButton
-                    key={s.id}
-                    label={s.name}
-                    odds={s.odds}
-                    active={active}
-                    disabled={s.suspended}
-                    onClick={() => onPick({ id: s.id, eventId, market: g.title, marketType: g.key, selection: s.name, odds: s.odds })}
-                  />
-                );
-              })}
-            </div>
+            {selections.length === 0 ? (
+              <div className="py-3 text-center text-sm text-[#64748B]">No odds available</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                {selections.map((s) => {
+                  const active = picks.some((p) => p.id === s.id);
+                  return (
+                    <OddsButton
+                      key={s.id}
+                      label={s.name}
+                      odds={s.odds}
+                      active={active}
+                      disabled={s.suspended}
+                      onClick={() => onPick({ id: s.id, eventId, market: g.title, marketType: g.key, selection: s.name, odds: s.odds })}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </MarketAccordion>
         );
       })}
@@ -433,18 +293,11 @@ export default function BasketballMatchPage() {
     setPicks(sharedPicks as BetPick[]);
   }, [sharedPicks]);
 
-  useEffect(() => {
-    if (!eventId) return;
-
-    connectSocket();
-    joinEventRoom(eventId);
-    const socket = getSocket();
-
-    const onEventUpdate = (data: Partial<BasketballEvent>) => {
+  useEventSocket(eventId, {
+    onEventUpdate: (data: Partial<BasketballEvent>) => {
       setEvent((prev) => (prev ? ({ ...prev, ...data }) : prev));
-    };
-
-    const onOddsUpdate = (data: { marketId?: string; markets?: Array<{ marketId?: string; selections: MarketSelection[] }> }) => {
+    },
+    onOddsUpdate: (data: { marketId?: string; markets?: Array<{ marketId?: string; selections: MarketSelection[] }> }) => {
       setEvent((prev) => {
         if (!prev) return prev;
         if (Array.isArray(data.markets)) {
@@ -458,17 +311,8 @@ export default function BasketballMatchPage() {
         }
         return prev;
       });
-    };
-
-    socket.on('event:update', onEventUpdate);
-    socket.on('odds:update', onOddsUpdate);
-
-    return () => {
-      leaveEventRoom(eventId);
-      socket.off('event:update', onEventUpdate);
-      socket.off('odds:update', onOddsUpdate);
-    };
-  }, [eventId]);
+    },
+  });
 
   const handlePick = (pick: BetPick) => {
     setPicks((prev) => (prev.some((p) => p.id === pick.id) ? prev.filter((p) => p.id !== pick.id) : [...prev, pick]));

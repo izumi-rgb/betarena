@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f350d04c204ef # v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ubuntu
@@ -32,8 +32,18 @@ jobs:
             git checkout "$BRANCH"
             git pull origin "$BRANCH"
 
-            # Rebuild and restart containers (no downtime for postgres/redis)
-            docker compose up -d --build --no-deps api web
+            # Build images first (without starting)
+            docker compose build api web
+
+            # Run migrations using a temporary container before swapping
+            echo "Running database migrations..."
+            docker compose run --rm -T api npm run migrate || {
+              echo "Migration failed!"
+              exit 1
+            }
+
+            # Now restart with new images
+            docker compose up -d --no-deps api web
 
             # Wait for API health check
             echo "Waiting for API to become healthy..."
@@ -49,3 +59,26 @@ jobs:
 
             # Show final state
             docker compose ps
+
+      - name: Run smoke test
+        run: |
+          echo "Running smoke tests with retry..."
+          for attempt in 1 2 3; do
+            echo "  Attempt $attempt/3..."
+            sleep 10
+            if curl -sf --max-time 15 ${{ secrets.VPS_URL }}/api/health > /dev/null 2>&1; then
+              echo "API health check passed"
+              # Also check frontend
+              if curl -sf --max-time 15 -o /dev/null ${{ secrets.VPS_URL }}; then
+                echo "Frontend check passed"
+                echo "All smoke tests passed"
+                exit 0
+              else
+                echo "Frontend check failed"
+              fi
+            else
+              echo "API health check failed"
+            fi
+          done
+          echo "Smoke tests failed after 3 attempts"
+          exit 1

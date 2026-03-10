@@ -164,57 +164,72 @@ Use the admin credentials from your seed (e.g. the user created by `npm run seed
 
 ---
 
-## Part 6: Optional — Nginx reverse proxy
+## Part 6: Nginx reverse proxy
 
-To serve on port 80 and later add HTTPS:
+Nginx serves as the public-facing reverse proxy with rate limiting, security headers, and WebSocket support.
 
 ```bash
 sudo apt-get install -y nginx
 ```
 
-Create a config, e.g.:
+Copy the production-ready config from the repo:
 
 ```bash
-sudo nano /etc/nginx/sites-available/betarena
-```
-
-Contents (replace `YOUR_PUBLIC_IP` or use a domain later):
-
-```nginx
-server {
-    listen 80;
-    server_name YOUR_PUBLIC_IP;   # or yourdomain.com
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:4000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Enable and reload:
-
-```bash
+sudo cp nginx/betarena.conf /etc/nginx/sites-available/betarena
+# Edit server_name if using a domain:
+# sudo nano /etc/nginx/sites-available/betarena
 sudo ln -sf /etc/nginx/sites-available/betarena /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Then use `http://<PUBLIC_IP>` (port 80). For HTTPS, add a certificate (e.g. Let’s Encrypt with Certbot) and set `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` and `CORS_ORIGIN` to the HTTPS URLs.
+The config includes:
+- Rate limiting (30 req/s API, 5 req/min login)
+- Security headers (X-Frame-Options, X-Content-Type-Options, etc.)
+- WebSocket upgrade for Socket.IO
+- Gzip compression
+- Health check bypass (no rate limit)
+
+For HTTPS, see `docs/deploy/HTTPS_SETUP.md`.
+
+---
+
+## Part 7: Backups
+
+Install the daily PostgreSQL backup cron:
+
+```bash
+sudo ./scripts/setup-backup-cron.sh
+```
+
+This creates:
+- Daily backups at 3:00 AM to `/backups/`
+- 30-day retention (older backups auto-deleted)
+- Log at `/var/log/betarena-backup.log`
+
+To restore from backup:
+```bash
+gunzip < /backups/betarena-YYYYMMDD-HHMMSS.sql.gz | docker compose exec -T postgres psql -U betarena betarena
+```
+
+---
+
+## Part 8: Health monitoring
+
+Run the health check script manually or via cron:
+
+```bash
+./scripts/health-check.sh http://localhost
+```
+
+For uptime monitoring, set up a cron that alerts on failure:
+
+```bash
+# Check every 5 minutes, email on failure
+*/5 * * * * /home/ubuntu/betarena/scripts/health-check.sh http://localhost >> /var/log/betarena-health.log 2>&1 || echo "BetArena DOWN" | mail -s "ALERT: BetArena health check failed" admin@yourdomain.com
+```
+
+Or use a free uptime service (UptimeRobot, Freshping) pointing at `https://yourdomain.com/api/health`.
 
 ---
 

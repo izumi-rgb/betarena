@@ -50,7 +50,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    req.user = decoded;
+    req.user = { ...decoded, role: user.role, display_id: user.display_id };
     next();
   } catch (err) {
     logger.debug('JWT verification failed', { error: (err as Error).message });

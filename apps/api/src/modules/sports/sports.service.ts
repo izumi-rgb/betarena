@@ -3,10 +3,12 @@ import redis from '../../config/redis';
 import { ODDS_CACHE_TTL_SECONDS } from '../../config/constants';
 import * as SportsDataService from '../sports-data/sports-data.service';
 import logger from '../../config/logger';
+import { parseScore as parseScoreShared } from '../../utils/parseScore';
+import { toSlug } from '../../utils/slug';
 
 /** Slug for URL/tabs: "American Football" -> "american-football" */
 function sportToSlug(sport: string): string {
-  return (sport || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  return toSlug(sport);
 }
 
 /** bet365-style sport display order (slug order for tabs) */
@@ -20,13 +22,9 @@ const SPORT_ORDER: Record<string, number> = {
   baseball: 6,
 };
 
-function parseScore(score: any): { homeScore: number; awayScore: number } {
-  if (!score) return { homeScore: 0, awayScore: 0 };
-  const s = typeof score === 'string' ? JSON.parse(score) : score;
-  return {
-    homeScore: parseInt(s?.home, 10) || 0,
-    awayScore: parseInt(s?.away, 10) || 0,
-  };
+function parseScore(score: unknown): { homeScore: number; awayScore: number } {
+  const parsed = parseScoreShared(score);
+  return { homeScore: parsed?.home ?? 0, awayScore: parsed?.away ?? 0 };
 }
 
 const MARKET_META: Record<string, { name: string; type: string }> = {
@@ -132,9 +130,7 @@ export async function listEventsBySport(sportOrSlug: string) {
   return rows.map((r: any) => mapEventRow(r, marketsByEvent[r.id] || []));
 }
 
-function toSlug(val: string) {
-  return (val || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
+// toSlug imported from ../../utils/slug
 
 export async function listCompetitionEvents(sportOrSlug: string, competition: string) {
   const events = await listEventsBySport(sportOrSlug);
@@ -149,31 +145,61 @@ export async function listCompetitionEvents(sportOrSlug: string, competition: st
   return events;
 }
 
-export async function getEventMarkets(eventId: number) {
-  const cacheKey = `markets:${eventId}`;
+export async function getEventMarkets(eventId: string | number) {
+  const idStr = String(eventId);
+  const isNumeric = /^\d+$/.test(idStr);
+  const cacheKey = `markets:${idStr}`;
+
   const cached = await redis.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
   // Try real sports data providers first
   try {
-    const markets = await SportsDataService.getMarkets(String(eventId));
+    const markets = await SportsDataService.getMarkets(idStr);
     if (markets.length > 0) {
-      const event = await db('events').where({ id: eventId }).first();
-      const result = {
-        event: event ? mapEventRow(event) : null,
-        markets,
-      };
+      // For numeric IDs, try DB for event info; for live API IDs, use aggregate cache
+      let eventInfo: any = null;
+      if (isNumeric) {
+        const row = await db('events').where({ id: eventId }).first();
+        eventInfo = row ? mapEventRow(row) : null;
+      }
+      if (!eventInfo) {
+        // Try aggregate cache for live API events
+        try {
+          const aggregate = await SportsDataService.getLiveEvents();
+          const allEvents = [...aggregate.live, ...aggregate.upcoming];
+          const liveEvent = allEvents.find((e: any) => String(e.id) === idStr);
+          if (liveEvent) {
+            eventInfo = {
+              id: liveEvent.id,
+              sport: liveEvent.sport,
+              home_team: liveEvent.homeTeam?.name ?? null,
+              away_team: liveEvent.awayTeam?.name ?? null,
+              score_home: liveEvent.score?.home ?? null,
+              score_away: liveEvent.score?.away ?? null,
+              status: liveEvent.status,
+              competition: liveEvent.competition?.name ?? null,
+              start_time: liveEvent.startTime ?? null,
+            };
+          }
+        } catch {
+          // aggregate cache miss is fine
+        }
+      }
+      const result = { event: eventInfo, markets };
       await redis.setex(cacheKey, ODDS_CACHE_TTL_SECONDS, JSON.stringify(result));
       return result;
     }
   } catch (err) {
     logger.warn('SportsDataService.getMarkets failed, falling back to DB', {
-      eventId,
+      eventId: idStr,
       error: (err as Error).message,
     });
   }
 
-  // Fallback: local DB query
+  // DB fallback (only for numeric IDs)
+  if (!isNumeric) throw new Error('EVENT_NOT_FOUND');
+
   const odds = await db('odds').where({ event_id: eventId });
   const event = await db('events').where({ id: eventId }).first();
 

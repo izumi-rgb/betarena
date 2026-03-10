@@ -13,6 +13,7 @@ import {
   revokeOtherUserSessions,
 } from './auth.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { requireRole } from '../../middleware/rbac.middleware';
 import { loginRateLimiter } from '../../middleware/rateLimiter.middleware';
 import { REFRESH_TOKEN_EXPIRY_SECONDS } from '../../config/constants';
 
@@ -142,14 +143,17 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     const result = await refreshAccessToken(refreshToken, ip, userAgent);
 
+    const accessMaxAge = result.isRememberMe ? 30 * 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+    const refreshMaxAge = result.isRememberMe ? 30 * 24 * 60 * 60 * 1000 : REFRESH_TOKEN_EXPIRY_SECONDS * 1000;
+
     res.cookie('access_token', result.accessToken, {
       ...COOKIE_OPTIONS,
-      maxAge: 2 * 60 * 60 * 1000,
+      maxAge: accessMaxAge,
     });
 
     res.cookie('refresh_token', result.newRefreshToken, {
       ...COOKIE_OPTIONS,
-      maxAge: REFRESH_TOKEN_EXPIRY_SECONDS * 1000,
+      maxAge: refreshMaxAge,
     });
 
     res.json({
@@ -189,13 +193,23 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       message: 'User info retrieved',
       error: null,
     });
-  } catch {
-    res.status(404).json({
-      success: false,
-      data: null,
-      message: 'User not found',
-      error: 'USER_NOT_FOUND',
-    });
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg === 'USER_NOT_FOUND') {
+      res.status(404).json({
+        success: false,
+        data: null,
+        message: 'User not found',
+        error: 'USER_NOT_FOUND',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        data: null,
+        message: 'Internal error',
+        error: 'INTERNAL_ERROR',
+      });
+    }
   }
 });
 
@@ -346,12 +360,8 @@ router.post('/my-sessions/revoke-others', authMiddleware, async (req: Request, r
 });
 
 // Admin-only: list all active sessions
-router.get('/sessions', authMiddleware, async (req: Request, res: Response) => {
+router.get('/sessions', authMiddleware, requireRole('admin'), async (req: Request, res: Response) => {
   try {
-    if (req.user?.role !== 'admin') {
-      res.status(403).json({ success: false, data: null, message: 'Admin only', error: 'FORBIDDEN' });
-      return;
-    }
     const sessions = await listSessions(req.cookies?.refresh_token);
     res.json({ success: true, data: sessions, message: 'Sessions retrieved', error: null });
   } catch {
@@ -360,12 +370,8 @@ router.get('/sessions', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Admin-only: revoke a session
-router.delete('/sessions/:id', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/sessions/:id', authMiddleware, requireRole('admin'), async (req: Request, res: Response) => {
   try {
-    if (req.user?.role !== 'admin') {
-      res.status(403).json({ success: false, data: null, message: 'Admin only', error: 'FORBIDDEN' });
-      return;
-    }
     const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const deleted = await revokeSession(sessionId);
     if (!deleted) {

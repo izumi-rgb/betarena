@@ -22,7 +22,7 @@ function sanitizeValue(value: unknown): unknown {
 }
 
 export function sanitizeMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const sqliResult = scanRequestForSqli(req.body, req.query, req.params);
+  const sqliResult = scanRequestForSqli(req.body, req.query, req.params, req.path);
 
   if (sqliResult) {
     const userId = (req as any).user?.id || null;

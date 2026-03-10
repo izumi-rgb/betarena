@@ -9,39 +9,50 @@ export async function createAgent(
   ip: string,
   userAgent: string
 ) {
-  const maxAgent = await db('users')
-    .where({ role: 'agent', created_by: adminId })
-    .max('id as maxId')
-    .first();
-
-  const sequence = (maxAgent?.maxId || 0) + 1;
-  const agentCount = await db('users').where({ role: 'agent' }).count('id as count').first();
-  const displayId = `A${(Number(agentCount?.count) || 0) + 1}`;
-  const username = `agent_${displayId.toLowerCase()}`;
   const password = generatePassword();
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const result = await db.transaction(async (trx) => {
-    const [agent] = await trx('users').insert({
-      display_id: displayId,
-      username,
-      password_hash: passwordHash,
-      role: 'agent',
-      is_active: true,
-      created_by: adminId,
-      parent_agent_id: null,
-      can_create_sub_agent: false,
-    }).returning('*');
+  const maxRetries = 5;
+  let result: any;
+  let displayId = '';
 
-    await trx('credit_accounts').insert({
-      user_id: agent.id,
-      balance: 0,
-      total_received: 0,
-      total_sent: 0,
-    });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const agentCount = await db('users').where({ role: 'agent' }).count('id as count').first();
+      displayId = `A${(Number(agentCount?.count) || 0) + 1 + attempt}`;
+      const username = `agent_${displayId.toLowerCase()}`;
 
-    return agent;
-  });
+      result = await db.transaction(async (trx) => {
+        const [agent] = await trx('users').insert({
+          display_id: displayId,
+          username,
+          password_hash: passwordHash,
+          role: 'agent',
+          is_active: true,
+          created_by: adminId,
+          parent_agent_id: null,
+          can_create_sub_agent: false,
+        }).returning('*');
+
+        await trx('credit_accounts').insert({
+          user_id: agent.id,
+          balance: 0,
+          total_received: 0,
+          total_sent: 0,
+        });
+
+        return agent;
+      });
+
+      break; // success
+    } catch (err: any) {
+      const isUniqueViolation =
+        err.code === '23505' ||
+        (err.message && err.message.includes('duplicate key') && err.message.includes('display_id'));
+      if (!isUniqueViolation || attempt === maxRetries - 1) throw err;
+      // retry with next sequence number
+    }
+  }
 
   await writeSystemLog({
     user_id: adminId,
@@ -56,7 +67,7 @@ export async function createAgent(
   return {
     id: result.id,
     display_id: displayId,
-    username,
+    username: result.username,
     password,
     role: 'agent',
   };
@@ -76,25 +87,32 @@ export async function listAgents() {
     .leftJoin('credit_accounts', 'users.id', 'credit_accounts.user_id')
     .where('users.role', 'agent');
 
-  const agentsWithCounts = await Promise.all(
-    agents.map(async (agent) => {
-      const memberCount = await db('users')
-        .where({ parent_agent_id: agent.id, role: 'member' })
-        .count('id as count')
-        .first();
-      const subAgentCount = await db('users')
-        .where({ parent_agent_id: agent.id, role: 'sub_agent' })
-        .count('id as count')
-        .first();
-      return {
-        ...agent,
-        member_count: Number(memberCount?.count || 0),
-        sub_agent_count: Number(subAgentCount?.count || 0),
-      };
-    })
-  );
+  if (agents.length === 0) return [];
 
-  return agentsWithCounts;
+  const agentIds = agents.map((a) => a.id);
+
+  // Single batch query to get member + sub_agent counts per agent
+  const countsRows = await db('users')
+    .select('parent_agent_id', 'role')
+    .count('id as count')
+    .whereIn('parent_agent_id', agentIds)
+    .whereIn('role', ['member', 'sub_agent'])
+    .groupBy('parent_agent_id', 'role');
+
+  // Build a lookup map: { agentId: { member: N, sub_agent: N } }
+  const countsMap: Record<number, { member: number; sub_agent: number }> = {};
+  for (const row of countsRows) {
+    const pid = Number(row.parent_agent_id);
+    if (!countsMap[pid]) countsMap[pid] = { member: 0, sub_agent: 0 };
+    if (row.role === 'member') countsMap[pid].member = Number(row.count);
+    if (row.role === 'sub_agent') countsMap[pid].sub_agent = Number(row.count);
+  }
+
+  return agents.map((agent) => ({
+    ...agent,
+    member_count: countsMap[agent.id]?.member || 0,
+    sub_agent_count: countsMap[agent.id]?.sub_agent || 0,
+  }));
 }
 
 export async function getAgentById(agentId: number) {

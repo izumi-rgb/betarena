@@ -1,11 +1,8 @@
 import { Router, Request, Response } from 'express';
 import db from '../../config/database';
+import { toSlug } from '../../utils/slug';
 
 const router = Router();
-
-function toSlug(val: string) {
-  return (val || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
 
 router.get('/', async (req: Request, res: Response) => {
   try {

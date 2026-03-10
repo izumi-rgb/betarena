@@ -7,7 +7,8 @@ import * as apiFootball from '../providers/api-football';
 import * as espn from '../providers/espn-hidden';
 import * as cricketData from '../providers/cricket-data';
 import * as oddspapi from '../providers/oddspapi';
-import { normalizeApiFootball, normalizeESPN, normalizeCricket, normalizeOddsMarkets } from '../normalizer/normalizer';
+import * as fotmobLive from '../providers/fotmob-live';
+import { normalizeApiFootball, normalizeESPN, normalizeCricket, normalizeFotmob, normalizeOddsMarkets } from '../normalizer/normalizer';
 
 // ---------------------------------------------------------------------------
 // Watcher helpers
@@ -33,6 +34,20 @@ async function getWatchedEventIds(): Promise<string[]> {
   } while (cursor !== '0');
 
   return watched;
+}
+
+/**
+ * SCAN-based alternative to redis.keys() — avoids blocking the Redis event loop.
+ */
+async function scanKeys(pattern: string): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor = '0';
+  do {
+    const [nextCursor, batch] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+    cursor = nextCursor;
+    keys.push(...batch);
+  } while (cursor !== '0');
+  return keys;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,6 +112,20 @@ async function refreshLiveScores(): Promise<void> {
     }
   } catch (err) {
     logger.error('Cricket live scores refresh failed', { error: (err as Error).message });
+  }
+
+  // FotMob — free, no budget guard needed (scores-only, complements API-Football)
+  try {
+    const fotmobMatches = await fotmobLive.getLiveMatches();
+    const io = getIO();
+    for (const raw of fotmobMatches) {
+      const event = normalizeFotmob(raw);
+      if (event && watched.includes(event.id)) {
+        io.to(`event:${event.id}`).emit('live:update', event);
+      }
+    }
+  } catch (err) {
+    logger.error('FotMob live scores refresh failed', { error: (err as Error).message });
   }
 }
 
@@ -181,7 +210,7 @@ async function refreshFixtures(): Promise<void> {
  */
 async function resetDailyCounters(): Promise<void> {
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const keys = await redis.keys(`*:daily_count:${yesterday}`);
+  const keys = await scanKeys(`*:daily_count:${yesterday}`);
   if (keys.length > 0) {
     await redis.del(...keys);
     logger.info('Daily API counters reset', { cleared: keys.length });

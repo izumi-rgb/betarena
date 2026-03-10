@@ -17,7 +17,7 @@ export async function adminCreateCredits(
       .increment('total_received', amount);
 
     await trx('credit_transactions').insert({
-      from_user_id: null,
+      from_user_id: 0,
       to_user_id: adminId,
       amount,
       type: 'create',
@@ -147,7 +147,7 @@ export async function adminCreditsOverview() {
     .sum('amount as total')
     .first();
 
-  const allAccounts = await db('credit_accounts').sum('balance as total').first();
+  const allAccounts = await db('credit_accounts').where('user_id', '>', 0).sum('balance as total').first();
 
   const agentBalances = await db('credit_accounts')
     .select('users.id', 'users.display_id', 'users.username', 'credit_accounts.balance')

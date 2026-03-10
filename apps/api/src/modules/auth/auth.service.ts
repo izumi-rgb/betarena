@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../../config/database';
@@ -92,6 +93,10 @@ function parseStoredSession(data: string): StoredSessionRecord | null {
   }
 
   return null;
+}
+
+function hashSessionId(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken).digest('hex');
 }
 
 function formatLastActive(iso: string): string {
@@ -334,7 +339,7 @@ export async function refreshAccessToken(
   refreshToken: string,
   ip: string,
   userAgent: string
-): Promise<{ accessToken: string; newRefreshToken: string }> {
+): Promise<{ accessToken: string; newRefreshToken: string; isRememberMe: boolean }> {
   const data = await redis.get(refreshTokenKey(refreshToken));
 
   if (!data) {
@@ -364,6 +369,11 @@ export async function refreshAccessToken(
     throw new Error('USER_NOT_FOUND');
   }
 
+  // Preserve remember-me TTL: check old session's remaining TTL before revoking
+  const REMEMBER_ME_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
+  const oldSessionTtl = await redis.ttl(refreshTokenKey(refreshToken));
+  const isRememberMe = oldSessionTtl > REFRESH_TOKEN_EXPIRY_SECONDS;
+
   await revokeRefreshSession(refreshToken, payload.id);
 
   const updatedPayload: JwtPayload = {
@@ -373,10 +383,15 @@ export async function refreshAccessToken(
     display_id: user.display_id,
   };
 
-  const accessToken = jwt.sign(updatedPayload, env.JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  const accessToken = jwt.sign(updatedPayload, env.JWT_SECRET, {
+    expiresIn: isRememberMe ? '30d' : JWT_EXPIRY,
+  });
 
   const newRefreshToken = uuidv4();
-  await registerRefreshSession(user.id, newRefreshToken, updatedPayload, ip, userAgent);
+  await registerRefreshSession(
+    user.id, newRefreshToken, updatedPayload, ip, userAgent,
+    isRememberMe ? REMEMBER_ME_TTL : undefined
+  );
 
   await writeSystemLog({
     user_id: user.id,
@@ -387,7 +402,7 @@ export async function refreshAccessToken(
     result: 'success',
   });
 
-  return { accessToken, newRefreshToken };
+  return { accessToken, newRefreshToken, isRememberMe };
 }
 
 export async function getMe(userId: number) {
@@ -470,7 +485,8 @@ export async function listSessions(
     const storedSession = parseStoredSession(data);
     if (!storedSession) continue;
 
-    const sessionId = key.replace(REFRESH_TOKEN_PREFIX, '');
+    const rawToken = key.replace(REFRESH_TOKEN_PREFIX, '');
+    const sessionId = hashSessionId(rawToken);
     if (filterUserId && storedSession.payload.id !== filterUserId) continue;
 
     sessions.push({
@@ -483,7 +499,7 @@ export async function listSessions(
       location: storedSession.meta.location,
       ip: storedSession.meta.ip,
       lastActive: formatLastActive(storedSession.meta.lastActiveAt),
-      current: currentRefreshToken === sessionId,
+      current: currentRefreshToken ? hashSessionId(currentRefreshToken) === sessionId : false,
     });
   }
 
@@ -494,34 +510,41 @@ export async function listSessions(
   });
 }
 
-export async function revokeSession(sessionId: string): Promise<boolean> {
-  const key = refreshTokenKey(sessionId);
-  const payloadRaw = await redis.get(key);
-  let userId: number | undefined;
-  if (payloadRaw) {
-    try {
-      userId = JSON.parse(payloadRaw).id;
-    } catch {
-      userId = undefined;
+export async function revokeSession(hashedSessionId: string): Promise<boolean> {
+  // Scan all refresh tokens to find the one matching this hash
+  const keys = await scanKeys(`${REFRESH_TOKEN_PREFIX}*`);
+  for (const key of keys) {
+    const rawToken = key.replace(REFRESH_TOKEN_PREFIX, '');
+    if (hashSessionId(rawToken) === hashedSessionId) {
+      const payloadRaw = await redis.get(key);
+      let userId: number | undefined;
+      if (payloadRaw) {
+        const stored = parseStoredSession(payloadRaw);
+        userId = stored?.payload.id;
+      }
+      await revokeRefreshSession(rawToken, userId);
+      return true;
     }
   }
-  await revokeRefreshSession(sessionId, userId);
-  const deleted = payloadRaw ? 1 : 0;
-  return deleted > 0;
+  return false;
 }
 
-export async function revokeOwnedSession(userId: number, sessionId: string): Promise<boolean> {
-  const key = refreshTokenKey(sessionId);
-  const payloadRaw = await redis.get(key);
-  if (!payloadRaw) return false;
-
-  const storedSession = parseStoredSession(payloadRaw);
-  if (!storedSession || storedSession.payload.id !== userId) {
-    throw new Error('NOT_AUTHORIZED');
+export async function revokeOwnedSession(userId: number, hashedSessionId: string): Promise<boolean> {
+  const keys = await scanKeys(`${REFRESH_TOKEN_PREFIX}*`);
+  for (const key of keys) {
+    const rawToken = key.replace(REFRESH_TOKEN_PREFIX, '');
+    if (hashSessionId(rawToken) === hashedSessionId) {
+      const payloadRaw = await redis.get(key);
+      if (!payloadRaw) return false;
+      const storedSession = parseStoredSession(payloadRaw);
+      if (!storedSession || storedSession.payload.id !== userId) {
+        throw new Error('NOT_AUTHORIZED');
+      }
+      await revokeRefreshSession(rawToken, userId);
+      return true;
+    }
   }
-
-  await revokeRefreshSession(sessionId, userId);
-  return true;
+  return false;
 }
 
 export async function revokeOtherUserSessions(userId: number, currentRefreshToken: string): Promise<number> {

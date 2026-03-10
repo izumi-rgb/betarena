@@ -104,11 +104,14 @@ router.get('/members/:id/bets', async (req: Request, res: Response) => {
       return;
     }
 
+    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+    const limit = Math.min(Math.max(1, parseInt(String(req.query.limit), 10) || 50), 200);
     const bets = await db('bets')
       .select('id', 'bet_uid', 'type', 'status', 'stake', 'potential_win', 'actual_win', 'created_at')
       .where({ user_id: memberId })
       .orderBy('created_at', 'desc')
-      .limit(300);
+      .limit(limit)
+      .offset((page - 1) * limit);
 
     res.json({ success: true, data: bets, message: 'Member bets retrieved', error: null });
   } catch (err) {
@@ -129,6 +132,8 @@ router.get('/members/:id/credits', async (req: Request, res: Response) => {
       return;
     }
 
+    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+    const limit = Math.min(Math.max(1, parseInt(String(req.query.limit), 10) || 50), 200);
     const transfers = await db('credit_transactions as ct')
       .leftJoin('users as fu', 'ct.from_user_id', 'fu.id')
       .select(
@@ -139,7 +144,8 @@ router.get('/members/:id/credits', async (req: Request, res: Response) => {
       )
       .where('ct.to_user_id', memberId)
       .orderBy('ct.created_at', 'desc')
-      .limit(300);
+      .limit(limit)
+      .offset((page - 1) * limit);
 
     res.json({ success: true, data: transfers, message: 'Member credits retrieved', error: null });
   } catch (err) {
@@ -154,7 +160,7 @@ router.post('/sub-agents', async (req: Request, res: Response) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const ua = req.get('user-agent') || 'unknown';
 
-    const user = await require('../../config/database').default('users').where({ id: req.user!.id }).first();
+    const user = await db('users').where({ id: req.user!.id }).first();
     const subAgent = await createSubAgent(
       req.user!.id, req.user!.role, req.user!.display_id,
       user.can_create_sub_agent, ip, ua

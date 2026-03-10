@@ -11,6 +11,7 @@ import {
   updateAgentPrivilege,
   resetUserPassword,
 } from './admin.service';
+import { validateAdminPIN } from '../../utils/pinValidator';
 
 const router = Router();
 
@@ -124,6 +125,12 @@ router.post('/credits/create', async (req: Request, res: Response) => {
       res.status(400).json({ success: false, data: null, message: 'Valid amount required', error: 'INVALID_AMOUNT' });
       return;
     }
+    const pinResult = validateAdminPIN(req.body?.pin);
+    if (!pinResult.valid) {
+      const status = pinResult.errorCode === 'PIN_NOT_CONFIGURED' ? 500 : pinResult.errorCode === 'INVALID_PIN' ? 403 : 400;
+      res.status(status).json({ success: false, data: null, message: pinResult.error!, error: pinResult.errorCode! });
+      return;
+    }
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';
     const result = await adminCreateCredits(req.user!.id, amount, ip, userAgent);
@@ -168,25 +175,32 @@ router.get('/credits/ledger', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/members', async (_req: Request, res: Response) => {
+router.get('/members', async (req: Request, res: Response) => {
   try {
-    const members = await db('users as u')
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25));
+    const offset = (page - 1) * limit;
+
+    const baseQuery = db('users as u')
       .leftJoin('credit_accounts as ca', 'u.id', 'ca.user_id')
       .leftJoin('bets as b', 'u.id', 'b.user_id')
-      .where('u.role', 'member')
+      .where('u.role', 'member');
+
+    const [countResult] = await baseQuery.clone().count('u.id as total');
+    const total = Number(countResult?.total) || 0;
+
+    const members = await baseQuery
+      .clone()
       .groupBy('u.id', 'ca.balance')
       .select(
-        'u.id',
-        'u.display_id',
-        'u.username',
-        'u.parent_agent_id',
-        'u.is_active',
-        'u.created_at',
-        'ca.balance'
+        'u.id', 'u.display_id', 'u.username', 'u.parent_agent_id',
+        'u.is_active', 'u.created_at', 'ca.balance'
       )
-      .count('b.id as total_bets');
+      .count('b.id as total_bets')
+      .limit(limit)
+      .offset(offset);
 
-    res.json({ success: true, data: members, message: 'Members retrieved', error: null });
+    res.json({ success: true, data: { data: members, total, page, limit }, message: 'Members retrieved', error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, message: 'Failed to retrieve members', error: (err as Error).message });
   }
