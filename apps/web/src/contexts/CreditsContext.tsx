@@ -11,6 +11,9 @@ interface CreditsContextValue {
   isAuthenticated: boolean;
   formatBalance: (value?: number) => string;
   refetchBalance: () => void;
+  // Variant-export backward compat
+  fetchTransactions: () => void;
+  placeBet: (amount: number, selections: unknown[]) => Promise<unknown>;
 }
 
 const CreditsContext = createContext<CreditsContextValue | null>(null);
@@ -24,6 +27,8 @@ export function useCredits(): CreditsContextValue {
       isAuthenticated: false,
       formatBalance: (v) => formatCurrency(v ?? 0),
       refetchBalance: () => {},
+      fetchTransactions: () => {},
+      placeBet: async () => ({}),
     };
   }
   return ctx;
@@ -46,6 +51,8 @@ export function CreditsProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         formatBalance,
         refetchBalance: refetch,
+        fetchTransactions: () => {},
+        placeBet: async () => ({}),
       }}
     >
       {children}
