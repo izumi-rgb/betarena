@@ -75,9 +75,11 @@ async function snapshotOdds(selections: BetSelection[]) {
       const candidateMarkets = aggregateEvent?.markets?.length
         ? aggregateEvent.markets
         : await getMarkets(eventId);
+      const normalize = (s: string) => s.toLowerCase().replace(/[_\s-]+/g, ' ').trim();
+      const selType = normalize(sel.market_type);
       const matchedMarket = (candidateMarkets || []).find((market) => {
-        return market.id === sel.market_type
-          || market.name.toLowerCase() === sel.market_type.toLowerCase();
+        return normalize(market.id) === selType
+          || normalize(market.name) === selType;
       });
       const matchedSelection = matchedMarket?.selections.find((selection) => selection.name === sel.selection_name);
 
@@ -90,8 +92,8 @@ async function snapshotOdds(selections: BetSelection[]) {
           odds_at_placement: matchedSelection.odds,
         });
         totalOdds *= matchedSelection.odds;
-      } else if (!isNumericId && sel.odds > 1 && sel.odds <= 50) {
-        // Live API event rotated out of display cache — accept client odds
+      } else if (sel.odds > 1 && sel.odds <= 50) {
+        // Event rotated out of display cache — accept client odds
         // (these came from our own system: real provider or synthetic house odds)
         snapshot.push({
           event_id: eventId,
