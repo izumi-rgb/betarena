@@ -108,6 +108,38 @@ export async function getFixture(id: number | string): Promise<unknown> {
 }
 
 /**
+ * Settlement-priority fixture fetch — bypasses the normal soft cap.
+ * Uses a separate daily counter with a small budget (10/day) so
+ * bet settlement isn't blocked by quota exhaustion on the main counter.
+ */
+export async function getFixtureForSettlement(id: number | string): Promise<unknown> {
+  const SETTLE_COUNTER = 'api-football:settlement';
+  const SETTLE_BUDGET = 10;
+
+  const count = await getDailyCount(SETTLE_COUNTER);
+  if (count >= SETTLE_BUDGET) {
+    logger.info(`${PROVIDER}: settlement budget exhausted (${count}/${SETTLE_BUDGET})`);
+    return null;
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  try {
+    const response = await axios.get<{ response: unknown[] }>(`${BASE_URL}/fixtures`, {
+      headers: { 'x-apisports-key': apiKey },
+      params: { id: Number(id) },
+      timeout: 10_000,
+    });
+    await incrementDailyCounter(SETTLE_COUNTER);
+    return response.data?.response?.[0] ?? null;
+  } catch (err) {
+    logger.warn(`${PROVIDER}: settlement fixture fetch failed`, { id, error: (err as Error).message });
+    return null;
+  }
+}
+
+/**
  * Fetch league standings. Cache: 2 h.
  */
 export async function getStandings(leagueId: number | string, season: number | string): Promise<unknown> {

@@ -5,6 +5,7 @@ import logger from '../config/logger';
 import { combinations, SYSTEM_BET_TYPES, calculatePlaceOdds, isQuarterLine } from '../modules/bets/bets.utils';
 import { emitToUser } from '../utils/socketEvents';
 import { parseScore as parseScoreRaw } from '../utils/parseScore';
+import { getFixtureForSettlement } from '../modules/sports-data/providers/api-football';
 
 interface EventResult {
   id: number | string;
@@ -49,6 +50,53 @@ async function getFinishedEventResult(eventId: number | string): Promise<EventRe
   }
 
   return null;
+}
+
+/**
+ * Fallback: directly query API-Football for a fixture result.
+ * Used when the main aggregate cache missed the event finishing
+ * (e.g. provider was rate-limited during the live→ft transition).
+ * Has its own small daily budget (10 calls) separate from the main quota.
+ */
+async function resolveResultFallback(eventId: number | string): Promise<EventResult | null> {
+  // Only numeric IDs can be API-Football fixtures
+  if (!/^\d+$/.test(String(eventId))) return null;
+
+  try {
+    const raw = await getFixtureForSettlement(eventId) as Record<string, unknown> | null;
+    if (!raw) return null;
+
+    const fixture = raw.fixture as Record<string, unknown> | undefined;
+    const goals = raw.goals as Record<string, number> | undefined;
+    const statusShort = String((fixture?.status as Record<string, unknown>)?.short || '');
+
+    if (!['FT', 'AET', 'PEN'].includes(statusShort)) return null;
+
+    const home = goals?.home ?? 0;
+    const away = goals?.away ?? 0;
+
+    const result: EventResult = {
+      id: eventId,
+      score: { home, away },
+      home_score: home,
+      away_score: away,
+      total_goals: home + away,
+    };
+
+    // Cache result in Redis so we don't need to call API again
+    await redis.setex(`result:${eventId}`, 86400, JSON.stringify({
+      id: eventId,
+      sport: 'football',
+      score: { home, away },
+      status: 'ft',
+    }));
+
+    logger.info('Resolved event result via fallback', { eventId, score: `${home}-${away}` });
+    return result;
+  } catch (err) {
+    logger.warn('Fallback result resolution failed', { eventId, error: (err as Error).message });
+    return null;
+  }
 }
 
 export function didSelectionWin(sel: any, eventResult: EventResult): boolean | null {
@@ -171,7 +219,7 @@ export async function settleBets(): Promise<void> {
             for (const dbEvent of dbEvents) {
               events.set(dbEvent.id, parseEventResult(dbEvent));
             }
-            // Mark missing DB events as null (not finished yet)
+            // Mark missing DB events — try Redis, then API fallback
             for (const id of numericIds) {
               if (!events.has(id)) {
                 // Try Redis fallback for numeric IDs too
@@ -183,10 +231,13 @@ export async function settleBets(): Promise<void> {
                     const away = parseInt(data.score?.away, 10) || 0;
                     events.set(id, { id: data.id, score: data.score, home_score: home, away_score: away, total_goals: home + away });
                   } else {
-                    events.set(id, null);
+                    // Last resort: direct API query (settlement-priority budget)
+                    const fallback = await resolveResultFallback(id);
+                    events.set(id, fallback);
                   }
                 } catch {
-                  events.set(id, null);
+                  const fallback = await resolveResultFallback(id);
+                  events.set(id, fallback);
                 }
               }
             }
