@@ -13,7 +13,7 @@ import { JwtPayload } from '../../middleware/auth.middleware';
 const BRUTE_FORCE_PREFIX = 'bf:';
 const REFRESH_TOKEN_PREFIX = 'refresh:';
 const USER_REFRESH_SESSIONS_PREFIX = 'user_refresh_sessions:';
-const BRUTE_FORCE_MAX = 5;
+const BRUTE_FORCE_MAX = 10;
 const BRUTE_FORCE_WINDOW_SECONDS = 15 * 60;
 
 type SessionMetadata = {

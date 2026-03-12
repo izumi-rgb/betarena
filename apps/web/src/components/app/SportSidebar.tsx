@@ -16,6 +16,22 @@ const MEMBER_NAV_LINKS = [
   { href: '/account', label: 'Account' },
 ];
 
+const FOOTBALL_LEAGUES = [
+  { slug: 'premier-league', label: 'Premier League' },
+  { slug: 'la-liga', label: 'La Liga' },
+  { slug: 'champions-league', label: 'Champions Lg' },
+  { slug: 'bundesliga', label: 'Bundesliga' },
+  { slug: 'serie-a', label: 'Serie A' },
+];
+
+const SPORT_LINKS = [
+  { href: '/sports/football', label: 'Football', icon: '\u26BD' },
+  { href: '/sports/tennis', label: 'Tennis', icon: '\uD83C\uDFBE' },
+  { href: '/sports/basketball', label: 'Basketball', icon: '\uD83C\uDFC0' },
+  { href: '/sports/golf', label: 'Golf', icon: '\u26F3' },
+  { href: '/sports/esports', label: 'Esports', icon: '\uD83C\uDFAE' },
+];
+
 function getInitials(name?: string): string {
   if (!name) return '??';
   const parts = name.split(/[\s_]+/).filter(Boolean);
@@ -31,6 +47,9 @@ export function SportSidebar() {
   const logout = useAuthStore((s) => s.logout);
   const { balance } = useBalance();
   const [showMenu, setShowMenu] = useState(false);
+  const [footballOpen, setFootballOpen] = useState(
+    () => !!pathname?.startsWith('/sports/football'),
+  );
 
   const handleLogout = async () => {
     setShowMenu(false);
@@ -48,7 +67,8 @@ export function SportSidebar() {
           BET<span className="text-[#00C37B]">ARENA</span>
         </span>
       </div>
-      <nav className="flex-1 space-y-1 p-3">
+
+      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {MEMBER_NAV_LINKS.map((l) => {
           const active = pathname === l.href || (l.href === '/sports' && pathname?.startsWith('/sports/'));
           return (
@@ -63,6 +83,77 @@ export function SportSidebar() {
             >
               {l.label}
             </Link>
+          );
+        })}
+
+        <div className="mt-4 mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[#64748B]">
+          All Sports
+        </div>
+
+        {SPORT_LINKS.map((sport) => {
+          const isFootball = sport.href === '/sports/football';
+          const sportActive = !!pathname?.startsWith(sport.href);
+
+          return (
+            <div key={sport.href}>
+              <div className="flex items-center">
+                <Link
+                  href={sport.href}
+                  className={`flex flex-1 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    sportActive
+                      ? 'border-l-[3px] border-[#00C37B] bg-[#1A2235] text-white'
+                      : 'text-[#94A3B8] hover:bg-[#1A2235] hover:text-white'
+                  }`}
+                >
+                  <span className="text-base">{sport.icon}</span>
+                  {sport.label}
+                </Link>
+                {isFootball && (
+                  <button
+                    onClick={() => setFootballOpen((v) => !v)}
+                    className="mr-1 rounded p-1 text-[#64748B] hover:bg-[#1A2235] hover:text-white transition-colors"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`transition-transform ${footballOpen ? 'rotate-180' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {isFootball && footballOpen && (
+                <div className="ml-1 space-y-0.5">
+                  {FOOTBALL_LEAGUES.map((league) => {
+                    const leagueHref = `/sports/football?league=${league.slug}`;
+                    const leagueActive = pathname === '/sports/football' &&
+                      typeof window !== 'undefined' &&
+                      new URLSearchParams(window.location.search).get('league') === league.slug;
+                    return (
+                      <Link
+                        key={league.slug}
+                        href={leagueHref}
+                        className={`block rounded-md py-1.5 pl-10 pr-3 text-xs font-medium transition-colors ${
+                          leagueActive
+                            ? 'text-[#00C37B]'
+                            : 'text-[#64748B] hover:bg-[#1A2235] hover:text-[#94A3B8]'
+                        }`}
+                      >
+                        {league.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

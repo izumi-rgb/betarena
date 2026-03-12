@@ -113,11 +113,13 @@ api.interceptors.response.use(
         { withCredentials: true },
       );
 
-      // Sync new token to Zustand store (for socket reconnection)
+      // Sync new token to Zustand store and reconnect socket
       const newToken = refreshRes.data?.data?.accessToken;
       if (newToken) {
         const { useAuthStore } = await import('@/stores/authStore');
         useAuthStore.getState().setToken(newToken);
+        const { connectSocket } = await import('@/lib/socket');
+        connectSocket(newToken);
       }
 
       processQueue(null);

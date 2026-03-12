@@ -74,7 +74,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
       res.status(429).json({
         success: false,
         data: null,
-        message: 'Too many failed attempts. Please try again later.',
+        message: 'Too many failed attempts. Please wait 15 minutes before trying again.',
         error: 'BRUTE_FORCE_BLOCKED',
       });
       return;

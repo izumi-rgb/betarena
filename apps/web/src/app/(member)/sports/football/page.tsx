@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
 import { useBetSlipStore } from '@/stores/betSlipStore';
@@ -33,7 +34,17 @@ async function fetchFootballEvents(): Promise<FootballEvent[]> {
   return response.data || [];
 }
 
+const LEAGUE_LABELS: Record<string, string> = {
+  'premier-league': 'Premier League',
+  'la-liga': 'La Liga',
+  'champions-league': 'Champions League',
+  'bundesliga': 'Bundesliga',
+  'serie-a': 'Serie A',
+};
+
 export default function FootballPage() {
+  const searchParams = useSearchParams();
+  const leagueParam = searchParams?.get('league') || '';
   const togglePick = useBetSlipStore((state) => state.togglePick);
   const picks = useBetSlipStore((state) => state.picks);
   const query = useQuery({
@@ -42,12 +53,37 @@ export default function FootballPage() {
     refetchInterval: 20_000,
   });
 
+  const allEvents = query.data || [];
+  const events = leagueParam
+    ? allEvents.filter((e) =>
+        e.league?.toLowerCase().replace(/\s+/g, '-').includes(leagueParam),
+      )
+    : allEvents;
+
+  const headerTitle = leagueParam && LEAGUE_LABELS[leagueParam]
+    ? LEAGUE_LABELS[leagueParam]
+    : 'Football';
+
   return (
     <main className="min-h-screen bg-[#0B0E1A] px-4 pb-24 pt-5 text-white md:px-6 md:pb-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-4 rounded-xl border border-[#1E293B] bg-[#111827] p-4">
-          <h1 className="text-2xl font-bold">Football</h1>
-          <p className="text-sm text-[#94A3B8]">Browse live and upcoming football fixtures.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">{headerTitle}</h1>
+              <p className="text-sm text-[#94A3B8]">
+                {leagueParam ? 'Filtered fixtures.' : 'Browse live and upcoming football fixtures.'}
+              </p>
+            </div>
+            {leagueParam && (
+              <Link
+                href="/sports/football"
+                className="rounded border border-[#1E293B] px-3 py-1.5 text-xs text-[#94A3B8] hover:border-[#00C37B] hover:text-white"
+              >
+                Show All
+              </Link>
+            )}
+          </div>
         </header>
 
         {query.isLoading ? (
@@ -58,14 +94,16 @@ export default function FootballPage() {
           <div className="rounded-xl border border-[#7F1D1D] bg-[#450A0A] p-4 text-sm text-[#FCA5A5]">Failed to load football events.</div>
         ) : null}
 
-        {!query.isLoading && !query.error && (query.data || []).length === 0 ? (
+        {!query.isLoading && !query.error && events.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#1E293B] bg-[#111827] p-8 text-center text-[#94A3B8]">
-            No football events available right now.
+            {leagueParam
+              ? `No ${LEAGUE_LABELS[leagueParam] || leagueParam} fixtures available right now.`
+              : 'No football events available right now.'}
           </div>
         ) : null}
 
         <div className="grid gap-3 md:grid-cols-2">
-          {(query.data || []).map((event) => {
+          {events.map((event) => {
             const market = event.markets?.[0];
             const selections = market?.selections?.slice(0, 3) || [];
             return (

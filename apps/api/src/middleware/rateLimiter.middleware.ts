@@ -1,5 +1,14 @@
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import type { SendCommandFn } from 'rate-limit-redis';
+import redis from '../config/redis';
 import { RATE_LIMITS } from '../config/constants';
+
+const sendCommand: SendCommandFn = async (...args: string[]) => {
+  // ioredis .call() accepts (command, ...args) which maps to the raw command interface
+  const [command, ...rest] = args;
+  return redis.call(command, ...rest) as ReturnType<SendCommandFn>;
+};
 
 export const loginRateLimiter = rateLimit({
   windowMs: RATE_LIMITS.LOGIN_WINDOW_MINUTES * 60 * 1000,
@@ -7,12 +16,13 @@ export const loginRateLimiter = rateLimit({
   message: {
     success: false,
     data: null,
-    message: 'Too many login attempts. Please try again later.',
+    message: 'Too many login attempts. Please wait 15 minutes before trying again.',
     error: 'RATE_LIMIT_EXCEEDED',
   },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+  store: new RedisStore({ sendCommand, prefix: 'rl:login:' }),
 });
 
 export const apiRateLimiter = rateLimit({
@@ -27,4 +37,5 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
+  store: new RedisStore({ sendCommand, prefix: 'rl:api:' }),
 });

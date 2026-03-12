@@ -6,6 +6,7 @@ import {
   createMember,
   listMembers,
   getMemberDetail,
+  deleteMember,
   createSubAgent,
   listSubAgents,
   updateSubAgentPrivilege,
@@ -90,6 +91,26 @@ router.patch('/members/:id/status', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false, data: null, message: 'Failed', error: (err as Error).message,
     });
+  }
+});
+
+router.delete('/members/:id', async (req: Request, res: Response) => {
+  try {
+    const memberId = parseInt(String(req.params.id), 10);
+    if (!Number.isFinite(memberId)) {
+      res.status(400).json({ success: false, data: null, message: 'Invalid member ID', error: 'INVALID_INPUT' });
+      return;
+    }
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ua = req.get('user-agent') || 'unknown';
+    const result = await deleteMember(memberId, req.user!.id, req.user!.role, ip, ua);
+    res.json({ success: true, data: result, message: 'Member deleted', error: null });
+  } catch (err) {
+    const msg = (err as Error).message;
+    const status = msg === 'MEMBER_NOT_FOUND' ? 404
+      : msg === 'CANNOT_DELETE_WITH_OPEN_BETS' ? 400
+      : 500;
+    res.status(status).json({ success: false, data: null, message: msg, error: msg });
   }
 });
 

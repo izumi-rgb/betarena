@@ -4,24 +4,34 @@ import { create } from "zustand";
 import { apiPost, apiGet } from "@/lib/api";
 import { connectSocket, disconnectSocket, SOCKET_TOKEN_STORAGE_KEY } from "@/lib/socket";
 
+function isLongLivedToken(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const ttl = payload.exp - Math.floor(Date.now() / 1000);
+    return ttl > 24 * 60 * 60; // > 24 hours means Remember Me
+  } catch { return false; }
+}
+
 function readStoredSocketToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return window.sessionStorage.getItem(SOCKET_TOKEN_STORAGE_KEY);
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(SOCKET_TOKEN_STORAGE_KEY)
+    ?? window.sessionStorage.getItem(SOCKET_TOKEN_STORAGE_KEY);
 }
 
 function writeStoredSocketToken(token: string | null): void {
-  if (typeof window === "undefined") {
-    return;
-  }
+  if (typeof window === "undefined") return;
 
   if (token) {
-    window.sessionStorage.setItem(SOCKET_TOKEN_STORAGE_KEY, token);
+    const storage = isLongLivedToken(token) ? window.localStorage : window.sessionStorage;
+    storage.setItem(SOCKET_TOKEN_STORAGE_KEY, token);
+    // Clean up the other storage
+    const otherStorage = storage === window.localStorage ? window.sessionStorage : window.localStorage;
+    otherStorage.removeItem(SOCKET_TOKEN_STORAGE_KEY);
     return;
   }
 
   window.sessionStorage.removeItem(SOCKET_TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem(SOCKET_TOKEN_STORAGE_KEY);
 }
 
 export interface User {

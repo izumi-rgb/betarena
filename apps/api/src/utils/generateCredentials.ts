@@ -9,3 +9,17 @@ export function generatePassword(length: number = 12): string {
   }
   return password;
 }
+
+/**
+ * Generate a random alphanumeric string (no vowels to avoid accidental words).
+ * Character set: bcdfghjklmnpqrstvwxyz0123456789 (31 chars)
+ */
+export function generateRandomId(length: number = 6): string {
+  const chars = 'bcdfghjklmnpqrstvwxyz0123456789';
+  const bytes = crypto.randomBytes(length);
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length];
+  }
+  return result;
+}

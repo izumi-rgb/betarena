@@ -21,6 +21,15 @@ const mockRedis: any = {
     srem: jest.fn().mockReturnThis(),
     exec: jest.fn().mockResolvedValue([]),
   })),
+  call: jest.fn().mockImplementation((...args: string[]) => {
+    const cmd = args[0]?.toUpperCase();
+    // rate-limit-redis: SCRIPT LOAD returns SHA1 hash
+    if (cmd === 'SCRIPT') return Promise.resolve('mockedsha1hash');
+    // rate-limit-redis: EVALSHA returns [totalHits, timeToExpire]
+    if (cmd === 'EVALSHA') return Promise.resolve([1, 60000]);
+    return Promise.resolve(null);
+  }),
+  ttl: jest.fn().mockResolvedValue(-1),
   on: jest.fn().mockReturnThis(),
   quit: jest.fn().mockResolvedValue('OK'),
   disconnect: jest.fn(),

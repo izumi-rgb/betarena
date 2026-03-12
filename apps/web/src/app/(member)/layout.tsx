@@ -11,7 +11,7 @@ import { AppShell } from '@/components/app/AppShell';
 
 // Sports that already include SportSidebar + TopHeader inline in their event detail pages.
 // Listing pages (/sports/cricket, not /sports/cricket/some-id) still get AppShell.
-const SPORTS_WITH_INLINE_CHROME = ['basketball', 'tennis', 'esports', 'golf', 'cricket'];
+const SPORTS_WITH_INLINE_CHROME = ['cricket'];
 
 // Top-level pages that have been migrated from variant bundles to real React components
 const MIGRATED_TOP_LEVEL = ['/results', '/my-bets'];

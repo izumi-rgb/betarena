@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiGet } from '@/lib/api';
 import { useBetSlipStore } from '@/stores/betSlipStore';
-import { useAuthStore } from '@/stores/authStore';
-import { SportSidebar, TopHeader } from '@/components/app/SportSidebar';
+import { BalanceBadge } from '@/components/app/BalanceBadge';
 import { LiveBadge, OddsButton, StatCard, MarketAccordion } from '@/components/sports/EventDetailComponents';
 import { useEventSocket } from '@/hooks/useEventSocket';
 
@@ -52,16 +52,9 @@ type EventMarketsResponse = {
   markets: Market[];
 };
 
-type BetPick = {
-  id: string;
-  eventId: number;
-  market: string;
-  marketType: string;
-  selection: string;
-  odds: number;
-};
-
-function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; onPick: (pick: BetPick) => void; picks: BetPick[]; eventId: number }) {
+function MatchCard({ event, eventId }: { event: BasketballEvent; eventId: number }) {
+  const togglePick = useBetSlipStore((s) => s.togglePick);
+  const picks = useBetSlipStore((s) => s.picks);
   const stats = event.stats ?? {};
 
   const marketGroups = useMemo(
@@ -134,7 +127,8 @@ function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; 
             ) : (
               <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                 {selections.map((s) => {
-                  const active = picks.some((p) => p.id === s.id);
+                  const pickId = `${eventId}-${g.key}-${s.id}`;
+                  const active = picks.some((p) => p.id === pickId);
                   return (
                     <OddsButton
                       key={s.id}
@@ -142,7 +136,7 @@ function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; 
                       odds={s.odds}
                       active={active}
                       disabled={s.suspended}
-                      onClick={() => onPick({ id: s.id, eventId, market: g.title, marketType: g.key, selection: s.name, odds: s.odds })}
+                      onClick={() => togglePick({ id: pickId, eventId, market: g.title, marketType: g.key, selection: s.name, odds: s.odds })}
                     />
                   );
                 })}
@@ -155,71 +149,6 @@ function MatchCard({ event, onPick, picks, eventId }: { event: BasketballEvent; 
   );
 }
 
-function BetSlip({ picks, onRemove }: { picks: BetPick[]; onRemove: (id: string) => void }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const totalOdds = picks.reduce((acc, p) => acc * p.odds, 1);
-  const [stake, setStake] = useState('10');
-  const stakeNum = Number(stake) || 0;
-
-  return (
-    <aside className="w-[320px] shrink-0 border-l border-[#1E293B] bg-[#111827] p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-white">Bet Slip</h3>
-        <span className="rounded bg-[#1A2235] px-2 py-1 text-xs text-[#94A3B8]">{picks.length} picks</span>
-      </div>
-
-      <div className="space-y-2">
-        {picks.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[#1E293B] p-4 text-center text-sm text-[#64748B]">Select odds to add bet picks</div>
-        ) : (
-          picks.map((p) => (
-            <div key={p.id} className="rounded-lg border border-[#1E293B] bg-[#1A2235] p-3">
-              <div className="text-xs text-[#94A3B8]">{p.market}</div>
-              <div className="mt-1 text-sm font-semibold text-white">{p.selection}</div>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="font-mono text-sm text-[#F59E0B]">{p.odds.toFixed(2)}</span>
-                <button onClick={() => onRemove(p.id)} className="text-xs text-[#EF4444] hover:text-[#ff6b6b]">Remove</button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="mt-4 border-t border-[#1E293B] pt-4">
-        <label className="mb-1 block text-xs text-[#94A3B8]">Stake</label>
-        <input
-          value={stake}
-          onChange={(e) => setStake(e.target.value)}
-          className="w-full rounded-lg border border-[#1E293B] bg-[#0B0E1A] px-3 py-2 font-mono text-white"
-        />
-        <div className="mt-2 flex items-center justify-between text-xs text-[#94A3B8]">
-          <span>Total Odds</span>
-          <span className="font-mono text-white">{picks.length ? totalOdds.toFixed(2) : '0.00'}</span>
-        </div>
-        <div className="mt-1 flex items-center justify-between text-xs text-[#94A3B8]">
-          <span>Potential Return</span>
-          <span className="font-mono text-[#00C37B]">{(stakeNum * (picks.length ? totalOdds : 0)).toFixed(2)}</span>
-        </div>
-        <button
-          onClick={() => {
-            if (!isAuthenticated) {
-              const next = encodeURIComponent(pathname || '/sports');
-              router.push(`/login?next=${next}`);
-              return;
-            }
-          }}
-          className="mt-3 w-full rounded-lg bg-[#00C37B] py-2.5 text-sm font-bold text-[#0B0E1A] hover:bg-[#00b974] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!picks.length}
-        >
-          Place Bet
-        </button>
-      </div>
-    </aside>
-  );
-}
-
 export default function BasketballMatchPage() {
   const params = useParams<{ eventId: string }>();
   const router = useRouter();
@@ -227,10 +156,6 @@ export default function BasketballMatchPage() {
   const [event, setEvent] = useState<BasketballEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [picks, setPicks] = useState<BetPick[]>([]);
-  const sharedPicks = useBetSlipStore((s) => s.picks);
-  const toggleSharedPick = useBetSlipStore((s) => s.togglePick);
-  const removeSharedPick = useBetSlipStore((s) => s.removePick);
 
   const loadEvent = useCallback(async () => {
     if (!eventId) return;
@@ -289,10 +214,6 @@ export default function BasketballMatchPage() {
     loadEvent();
   }, [loadEvent]);
 
-  useEffect(() => {
-    setPicks(sharedPicks as BetPick[]);
-  }, [sharedPicks]);
-
   useEventSocket(eventId, {
     onEventUpdate: (data: Partial<BasketballEvent>) => {
       setEvent((prev) => (prev ? ({ ...prev, ...data }) : prev));
@@ -314,41 +235,31 @@ export default function BasketballMatchPage() {
     },
   });
 
-  const handlePick = (pick: BetPick) => {
-    setPicks((prev) => (prev.some((p) => p.id === pick.id) ? prev.filter((p) => p.id !== pick.id) : [...prev, pick]));
-    toggleSharedPick(pick);
-  };
-
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0B0E1A] text-[#94A3B8]">Loading basketball event...</div>
+      <div className="rounded-xl border border-[#1E293B] bg-[#111827] p-4 text-[#94A3B8]">Loading basketball event...</div>
     );
   }
 
   if (!event) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0B0E1A] px-6 text-center text-[#EF4444]">
+      <div className="rounded-xl border border-[#7F1D1D] bg-[#450A0A] p-4 text-sm text-[#FCA5A5]">
         {error ?? 'Basketball event not found'}
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0B0E1A] text-[#F1F5F9]">
-      <SportSidebar />
-
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <TopHeader />
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6">
-            <MatchCard event={event} onPick={handlePick} picks={picks} eventId={Number(eventId)} />
-          </div>
-          <BetSlip picks={picks} onRemove={(id) => {
-            setPicks((prev) => prev.filter((p) => p.id !== id));
-            removeSharedPick(id);
-          }} />
+    <main className="min-h-screen bg-[#0B0E1A] px-4 pb-24 pt-5 text-white md:px-6 md:pb-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Link href="/sports/basketball" className="rounded border border-[#1E293B] px-3 py-2 text-sm text-[#CBD5E1] hover:border-[#00C37B]">
+            Back to Basketball
+          </Link>
+          <BalanceBadge />
         </div>
-      </main>
-    </div>
+        <MatchCard event={event} eventId={Number(eventId)} />
+      </div>
+    </main>
   );
 }

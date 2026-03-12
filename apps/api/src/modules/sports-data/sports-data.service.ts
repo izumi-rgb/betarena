@@ -117,11 +117,12 @@ export function filterAndSortEvents(events: LiveEvent[]): LiveEvent[] {
     });
   }
 
-  // Phase 1: take up to 3 best events per sport (guarantees diversity)
+  // Phase 1: take up to 3 best Tier 1-2 events per sport (guarantees diversity)
   const reserved: LiveEvent[] = [];
   const reservedIds = new Set<string>();
   for (const [, sportEvents] of bySport) {
-    for (const e of sportEvents.slice(0, 3)) {
+    const reservable = sportEvents.filter(e => getLeagueTier(e) <= 2);
+    for (const e of reservable.slice(0, 3)) {
       reserved.push(e);
       reservedIds.add(e.id);
     }
@@ -330,7 +331,7 @@ export async function refreshAggregateCache(): Promise<{ live: LiveEvent[]; upco
     if (Array.isArray(fotmobMatches)) {
       for (const raw of fotmobMatches) {
         const event = normalizeFotmob(raw);
-        if (event) {
+        if (event && getLeagueTier(event) <= 2) {
           events.push(event);
           // Track home+away names to deduplicate with API-Football
           footballIds.add(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`);
@@ -347,7 +348,7 @@ export async function refreshAggregateCache(): Promise<{ live: LiveEvent[]; upco
     if (Array.isArray(fotmobToday)) {
       for (const raw of fotmobToday) {
         const event = normalizeFotmob(raw);
-        if (event && !footballIds.has(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`)) {
+        if (event && getLeagueTier(event) <= 2 && !footballIds.has(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`)) {
           events.push(event);
           footballIds.add(`${event.homeTeam.name.toLowerCase()}||${event.awayTeam.name.toLowerCase()}`);
         }

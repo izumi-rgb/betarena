@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
 import { ResetPasswordModal } from '@/components/shared/ResetPasswordModal';
 
@@ -420,6 +420,27 @@ export default function AgentMembersPage() {
     refetchInterval: 30_000,
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
+      apiPatch(`/api/agents/members/${id}/status`, { is_active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', 'members'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiDelete(`/api/agents/members/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', 'members'] }),
+  });
+
+  const handleDeleteMember = useCallback((m: MemberRow) => {
+    const confirmed = window.confirm(
+      `Delete member ${m.display_id || m.username}?\n\n` +
+      `This cannot be undone.\n` +
+      `Member must have no open bets.`
+    );
+    if (!confirmed) return;
+    deleteMutation.mutate(m.id);
+  }, [deleteMutation]);
+
   /* ---------- search / pagination ---------- */
 
   const filtered = useMemo(() => {
@@ -689,6 +710,35 @@ export default function AgentMembersPage() {
                       >
                         RESET PW
                       </button>
+                      {isActive ? (
+                        <button
+                          onClick={() => statusMutation.mutate({ id: m.id, is_active: false })}
+                          disabled={statusMutation.isPending}
+                          className="rounded border border-[#EF4444]/20 bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#EF4444]/60 transition hover:text-[#EF4444] hover:border-[#EF4444]/40 disabled:opacity-50"
+                          title="Suspend member"
+                        >
+                          SUSPEND
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => statusMutation.mutate({ id: m.id, is_active: true })}
+                          disabled={statusMutation.isPending}
+                          className="rounded border border-[#00C37B]/20 bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#00C37B]/60 transition hover:text-[#00C37B] hover:border-[#00C37B]/40 disabled:opacity-50"
+                          title="Unsuspend member"
+                        >
+                          UNSUSPEND
+                        </button>
+                      )}
+                      {!isActive && (
+                        <button
+                          onClick={() => handleDeleteMember(m)}
+                          disabled={deleteMutation.isPending}
+                          className="rounded border border-red-800 bg-red-900/30 px-2 py-1 text-[12px] font-bold text-red-400 transition hover:bg-red-900/50 disabled:opacity-50"
+                          title="Delete member permanently"
+                        >
+                          DELETE
+                        </button>
+                      )}
                       <button
                         onClick={() => setManageTarget(m)}
                         className="rounded border border-[#1E293B] bg-[#0B0E1A] px-2 py-1 text-[12px] font-bold text-[#64748B] transition hover:text-white"

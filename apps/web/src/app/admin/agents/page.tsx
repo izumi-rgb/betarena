@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
 import { copyToClipboard as copyText } from '@/lib/copyToClipboard';
 import { ResetPasswordModal } from '@/components/shared/ResetPasswordModal';
 
@@ -67,6 +67,22 @@ export default function AgentsPage() {
       apiPatch(`/api/admin/agents/${id}/status`, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'agents'] }),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiDelete(`/api/admin/agents/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'agents'] }),
+  });
+
+  const handleDeleteAgent = (agent: AgentRow) => {
+    const confirmed = window.confirm(
+      `Delete agent ${agent.display_id || agent.username}?\n\n` +
+      `This will also delete all their members and sub-agents.\n` +
+      `This cannot be undone.\n\n` +
+      `Make sure all credits have been transferred first.`
+    );
+    if (!confirmed) return;
+    deleteMutation.mutate(agent.id);
+  };
 
   const filtered = agents.filter((a) => {
     const q = search.toLowerCase();
@@ -295,6 +311,16 @@ export default function AgentsPage() {
                               title="Suspend agent"
                             >
                               Suspend
+                            </button>
+                          )}
+                          {!isActive && (
+                            <button
+                              onClick={() => handleDeleteAgent(agent)}
+                              disabled={deleteMutation.isPending}
+                              className="border border-red-800 text-red-400 text-[11px] font-bold px-3 py-1.5 rounded bg-red-900/30 hover:bg-red-900/50 transition-all disabled:opacity-50"
+                              title="Delete agent permanently"
+                            >
+                              Delete
                             </button>
                           )}
                         </div>

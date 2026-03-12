@@ -9,6 +9,7 @@ import {
   getAgentById,
   updateAgentStatus,
   updateAgentPrivilege,
+  deleteAgent,
   resetUserPassword,
 } from './admin.service';
 import { validateAdminPIN } from '../../utils/pinValidator';
@@ -27,9 +28,10 @@ async function resolveAgentId(paramId: string): Promise<number> {
 
 router.post('/agents', async (req: Request, res: Response) => {
   try {
+    const { nickname } = req.body || {};
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';
-    const agent = await createAgent(req.user!.id, ip, userAgent);
+    const agent = await createAgent(req.user!.id, nickname || null, ip, userAgent);
 
     res.status(201).json({
       success: true,
@@ -91,6 +93,22 @@ router.patch('/agents/:id/status', async (req: Request, res: Response) => {
   } catch (err) {
     const msg = (err as Error).message;
     const status = msg === 'AGENT_NOT_FOUND' ? 404 : 500;
+    res.status(status).json({ success: false, data: null, message: msg, error: msg });
+  }
+});
+
+router.delete('/agents/:id', async (req: Request, res: Response) => {
+  try {
+    const agentId = await resolveAgentId(String(req.params.id));
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.get('user-agent') || 'unknown';
+    const result = await deleteAgent(agentId, req.user!.id, ip, userAgent);
+    res.json({ success: true, data: result, message: 'Agent deleted', error: null });
+  } catch (err) {
+    const msg = (err as Error).message;
+    const status = msg === 'AGENT_NOT_FOUND_OR_DELETED' ? 404
+      : msg === 'CANNOT_DELETE_WITH_CREDITS' ? 400
+      : 500;
     res.status(status).json({ success: false, data: null, message: msg, error: msg });
   }
 });
@@ -184,7 +202,8 @@ router.get('/members', async (req: Request, res: Response) => {
     const baseQuery = db('users as u')
       .leftJoin('credit_accounts as ca', 'u.id', 'ca.user_id')
       .leftJoin('bets as b', 'u.id', 'b.user_id')
-      .where('u.role', 'member');
+      .where('u.role', 'member')
+      .whereNull('u.deleted_at');
 
     const [countResult] = await baseQuery.clone().count('u.id as total');
     const total = Number(countResult?.total) || 0;

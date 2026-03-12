@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import db from '../../config/database';
 import { writeSystemLog } from '../../utils/systemLog';
-import { generatePassword } from '../../utils/generateCredentials';
+import { generatePassword, generateRandomId } from '../../utils/generateCredentials';
 
 export async function createMember(
   agentId: number,
@@ -20,14 +20,9 @@ export async function createMember(
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const memberCount = await db('users')
-        .where({ parent_agent_id: agentId, role: 'member' })
-        .count('id as count')
-        .first();
-
-      const sequence = Number(memberCount?.count || 0) + 1 + attempt;
-      displayId = `${agentDisplayId}_M${sequence}`;
-      const username = `member_${displayId.toLowerCase()}`;
+      const randomId = generateRandomId(6);
+      displayId = `M-${randomId}`;
+      const username = `mb_${randomId}`;
 
       result = await db.transaction(async (trx) => {
         const [member] = await trx('users').insert({
@@ -56,7 +51,7 @@ export async function createMember(
     } catch (err: any) {
       const isUniqueViolation =
         err.code === '23505' ||
-        (err.message && err.message.includes('duplicate key') && err.message.includes('display_id'));
+        (err.message && err.message.includes('duplicate key'));
       if (!isUniqueViolation || attempt === maxRetries - 1) throw err;
     }
   }
@@ -94,6 +89,7 @@ export async function listMembers(agentId: number) {
     )
     .leftJoin('credit_accounts', 'users.id', 'credit_accounts.user_id')
     .where({ 'users.parent_agent_id': agentId, 'users.role': 'member' })
+    .whereNull('users.deleted_at')
     .orderBy('users.created_at', 'desc');
 }
 
@@ -112,6 +108,7 @@ export async function getMemberDetail(agentId: number, memberId: number) {
     )
     .leftJoin('credit_accounts', 'users.id', 'credit_accounts.user_id')
     .where({ 'users.id': memberId, 'users.parent_agent_id': agentId, 'users.role': 'member' })
+    .whereNull('users.deleted_at')
     .first();
 
   if (!member) throw new Error('MEMBER_NOT_FOUND');
@@ -159,14 +156,9 @@ export async function createSubAgent(
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const subAgentCount = await db('users')
-        .where({ parent_agent_id: agentId, role: 'sub_agent' })
-        .count('id as count')
-        .first();
-
-      const sequence = Number(subAgentCount?.count || 0) + 1 + attempt;
-      displayId = `${agentDisplayId}_SA${sequence}`;
-      const username = `subagent_${displayId.toLowerCase()}`;
+      const randomId = generateRandomId(6);
+      displayId = `S-${randomId}`;
+      const username = `sa_${randomId}`;
 
       result = await db.transaction(async (trx) => {
         const [subAgent] = await trx('users').insert({
@@ -194,7 +186,7 @@ export async function createSubAgent(
     } catch (err: any) {
       const isUniqueViolation =
         err.code === '23505' ||
-        (err.message && err.message.includes('duplicate key') && err.message.includes('display_id'));
+        (err.message && err.message.includes('duplicate key'));
       if (!isUniqueViolation || attempt === maxRetries - 1) throw err;
     }
   }
@@ -218,6 +210,53 @@ export async function createSubAgent(
   };
 }
 
+export async function deleteMember(
+  memberId: number,
+  agentId: number,
+  agentRole: string,
+  ip: string,
+  userAgent: string
+) {
+  const member = await db('users')
+    .where({
+      id: memberId,
+      parent_agent_id: agentId,
+      role: 'member',
+    })
+    .whereNull('deleted_at')
+    .first();
+
+  if (!member) throw new Error('MEMBER_NOT_FOUND');
+
+  const openBets = await db('bets')
+    .where({ user_id: memberId, status: 'open' })
+    .count('id as count')
+    .first();
+
+  if (Number(openBets?.count) > 0) {
+    throw new Error('CANNOT_DELETE_WITH_OPEN_BETS');
+  }
+
+  await db('users')
+    .where({ id: memberId })
+    .update({ deleted_at: new Date(), is_active: false });
+
+  await writeSystemLog({
+    user_id: agentId,
+    role: agentRole,
+    action: 'user.delete',
+    ip_address: ip,
+    user_agent: userAgent,
+    payload: {
+      deleted_member_id: memberId,
+      deleted_member_display_id: member.display_id,
+    },
+    result: 'success',
+  });
+
+  return { id: memberId, deleted: true };
+}
+
 export async function listSubAgents(agentId: number) {
   return db('users')
     .select(
@@ -231,6 +270,7 @@ export async function listSubAgents(agentId: number) {
     )
     .leftJoin('credit_accounts', 'users.id', 'credit_accounts.user_id')
     .where({ 'users.parent_agent_id': agentId, 'users.role': 'sub_agent' })
+    .whereNull('users.deleted_at')
     .orderBy('users.created_at', 'desc');
 }
 
